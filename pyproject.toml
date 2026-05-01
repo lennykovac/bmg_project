@@ -1,0 +1,9 @@
+[project]
+name = "bmg-project"
+version = "0.1.0"
+description = "Project for the module: Fortgeschrittene Methoden der Bioinformatik."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "asymmetree>=2.3.0",
+]
