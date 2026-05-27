@@ -14,5 +14,3 @@ lib/
 
 # from plotting
 lib/
-# uv generated files
-uv.lock
