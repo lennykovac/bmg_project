@@ -12,5 +12,3 @@ lib/
 # Virtual environments
 .venv
 
-# uv generated files
-uv.lock
