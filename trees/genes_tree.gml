@@ -2,112 +2,91 @@ graph [
   directed 1
   node [
     id 0
-    label "131649050079664"
+    label "137615003456912"
     event "S"
     reconc 1
-    tstamp 0.2891323119554985
+    tstamp 0.4894522222926848
     transferred 0
     dist 0.0
   ]
   node [
     id 1
-    label "131649050079824"
+    label "137615003457072"
     event "S"
-    reconc 3
-    tstamp 0.2640655172790103
+    reconc 2
+    tstamp 0.47591382090985745
     transferred 0
-    dist 0.03157436522279559
+    dist 0.010131113460914547
     sibling_nr 0
   ]
   node [
     id 2
-    label "131649050080304"
-    event "S"
-    reconc 5
-    tstamp 0.0
-    transferred 0
-    dist 0.32038106205160116
-    sibling_nr 0
-  ]
-  node [
-    id 3
-    label "131649050078384"
+    label "137615003457232"
     event "S"
     reconc 4
     tstamp 0.0
     transferred 0
-    dist 0.37383727547368173
+    dist 0.39219404610552633
+    sibling_nr 0
+  ]
+  node [
+    id 3
+    label "137615003457392"
+    event "S"
+    reconc 5
+    tstamp 0.0
+    transferred 0
+    dist 0.36099972164342853
     sibling_nr 1
   ]
   node [
     id 4
-    label "131649050080464"
+    label "137615003457552"
     event "S"
-    reconc 2
-    tstamp 0.1881740884214418
+    reconc 3
+    tstamp 0.4721781397655518
     transferred 0
-    dist 0.11939339577852978
+    dist 0.012615029961035982
     sibling_nr 1
   ]
   node [
     id 5
-    label "131649050080624"
-    event "H"
-    reconc 2
+    label "137615003456432"
+    event "S"
     reconc 7
-    tstamp 0.1613307055987196
+    tstamp 0.3551817186499683
     transferred 0
-    dist 0.028754646127255142
+    dist 0.08653431301447935
     sibling_nr 0
   ]
   node [
     id 6
-    label "131649050080784"
-    event "S"
-    reconc 7
-    tstamp 0.03620046367729346
-    transferred 0
-    dist 0.1340395824934092
-    sibling_nr 0
-  ]
-  node [
-    id 7
-    label "131649050080944"
+    label "137615003457712"
     event "S"
     reconc 8
     tstamp 0.0
     transferred 0
-    dist 0.03868598772496158
+    dist 0.2604086861000986
     sibling_nr 0
   ]
   node [
-    id 8
-    label "131649050081104"
+    id 7
+    label "137615003457872"
     event "S"
     reconc 9
     tstamp 0.0
     transferred 0
-    dist 0.04074075704103224
+    dist 0.22803223330416908
     sibling_nr 1
   ]
   node [
-    id 9
-    label "131649050081264"
-    event "S"
-    reconc 6
-    tstamp 0.0
-    transferred 1
-    dist 0.19330094506400888
-    sibling_nr 1
-  ]
-  node [
-    id 10
-    label "131649050081424"
+    id 8
+    label "137615003458032"
     event "S"
     reconc 6
     tstamp 0.0
     transferred 0
-    dist 0.20650872415750443
+    dist 0.30496870591508557
     sibling_nr 1
   ]
   edge [
@@ -132,7 +111,7 @@ graph [
   ]
   edge [
     source 4
-    target 10
+    target 8
   ]
   edge [
     source 5
@@ -140,14 +119,6 @@ graph [
   ]
   edge [
     source 5
-    target 9
-  ]
-  edge [
-    source 6
     target 7
-  ]
-  edge [
-    source 6
-    target 8
   ]
 ]

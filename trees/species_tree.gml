@@ -2,81 +2,81 @@ graph [
   directed 1
   node [
     id 0
-    label "131649048871328"
+    label "137615003052624"
     event "root"
-    tstamp 1.6759028825370397
+    tstamp 1.285858197817018
     dist 0.0
   ]
   node [
     id 1
-    label "131649049866832"
+    label "137615003086480"
     event "S"
-    tstamp 0.2891323119554985
-    dist 1.3867705705815412
+    tstamp 0.4894522222926848
+    dist 0.7964059755243332
     sibling_nr 0
   ]
   node [
     id 2
-    label "131649049866512"
+    label "137615003086800"
     event "S"
-    tstamp 0.2640655172790103
-    dist 0.025066794676488202
+    tstamp 0.47591382090985745
+    dist 0.013538401382827359
     sibling_nr 0
   ]
   node [
     id 3
-    label "131649050112576"
+    label "137615003068048"
     event "S"
     tstamp 0.0
-    dist 0.2640655172790103
+    dist 0.47591382090985745
     sibling_nr 0
   ]
   node [
     id 4
-    label "131649050112848"
+    label "137615003326112"
     event "S"
     tstamp 0.0
-    dist 0.2640655172790103
+    dist 0.47591382090985745
     sibling_nr 1
   ]
   node [
     id 5
-    label "131649048693200"
+    label "137615007819344"
     event "S"
-    tstamp 0.1881740884214418
-    dist 0.1009582235340567
+    tstamp 0.4721781397655518
+    dist 0.017274082527133028
     sibling_nr 1
   ]
   node [
     id 6
-    label "131649048693504"
+    label "137615003437216"
     event "S"
-    tstamp 0.03620046367729346
-    dist 0.15197362474414833
+    tstamp 0.3551817186499683
+    dist 0.1169964211155835
     sibling_nr 0
   ]
   node [
     id 7
-    label "131649048685648"
+    label "137615003620944"
     event "S"
     tstamp 0.0
-    dist 0.03620046367729346
+    dist 0.3551817186499683
     sibling_nr 0
   ]
   node [
     id 8
-    label "131649048685904"
+    label "137615003621200"
     event "S"
     tstamp 0.0
-    dist 0.03620046367729346
+    dist 0.3551817186499683
     sibling_nr 1
   ]
   node [
     id 9
-    label "131649049753168"
+    label "137615007596016"
     event "S"
     tstamp 0.0
-    dist 0.1881740884214418
+    dist 0.4721781397655518
     sibling_nr 1
   ]
   edge [
