@@ -70,14 +70,18 @@ def add_hybrid_node(
     donor: donor node
     hybrid: hybrid node
     """
-    # first insert donor to donor_edge
-    G.add_node(donor)
-    insert_node_between_two_nodes(donor, donor_edge[0], donor_edge[1], G)
-    # second insert hybrid to hybrid_edge
-    G.add_node(hybrid)
-    insert_node_between_two_nodes(hybrid, hybrid_edge[0], hybrid_edge[1], G)
-    # third add edge between donor and hybrid
-    G.add_edge(donor, hybrid)
+    # we have to check if a path exists from the source of the donor edge to the source of the hybrid edge
+    if nx.has_path(G, donor_edge[0], hybrid_edge[0]):
+        raise Exception("Cant insert hybrid. It would make the Graph cyclic.")
+    else:
+        # first insert donor to donor_edge
+        G.add_node(donor)
+        insert_node_between_two_nodes(donor, donor_edge[0], donor_edge[1], G)
+        # second insert hybrid to hybrid_edge
+        G.add_node(hybrid)
+        insert_node_between_two_nodes(hybrid, hybrid_edge[0], hybrid_edge[1], G)
+        # third add edge between donor and hybrid
+        G.add_edge(donor, hybrid)
 
 
 def transform(
@@ -97,7 +101,7 @@ def transform(
     di_graph = nx.DiGraph()
 
     if generate_new_random:
-        bic_tree = random_colored_tree(leaves, species)
+        bic_tree = random_colored_tree(leaves, species, binary=True)
         di_graph, root_id = bic_tree.to_nx()  # transform Tree() to networkx DiGraph
         # TODO save old root_id and make it label
         # safe old node ids as str
@@ -116,4 +120,17 @@ def transform(
 
 
 if __name__ == "__main__":
-    transform(2, 20, "test/test_phylo_tree.gml")
+    # transform(2, 20, "test/test_phylo_tree.gml")
+    myG = nx.DiGraph()
+    myG.add_edge("root", "A")
+    myG.add_edge("root", "B")
+    myG.add_edge("A", "C")
+    myG.add_edge("C", "E")
+    myG.add_edge("C", "F")
+    myG.add_edge("B", "G")
+    myG.add_edge("B", "I")
+    donor_edge = ("A", "C")
+    hybrid_edge = ("B", "G")
+    add_hybrid_node(donor_edge, hybrid_edge, "Donor", "hybrid", myG)
+
+    show_graph(myG)
