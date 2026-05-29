@@ -13,7 +13,7 @@
 
 | Todo                                     | Name    | Tested | Done  |
 | ---------------------------------------- | ------- | ------ | ----- |
-| **LEAH GITHUB NOT SSH AUTH**             | **ALL** | ❗ NO  | ❗ NO |
+| **LEAH GITHUB SSH AUTH**                 | **ALL** | ❗ NO  | ❗ NO |
 | Keep Distance attribute in gene tree     | Lenny   | ❗ NO  | ❗ NO |
 | Hybrid-Node-Insertion                    | Lenny   | ❗ NO  | ❗ NO |
 | BIC Cherry Expansion                     | Leah    | ❗ NO  | ❗ NO |
@@ -22,3 +22,7 @@
 ## Help
 
 - how to run project: [uv](https://docs.astral.sh/uv/guides/scripts/)
+
+```
+uv run main.py
+```
