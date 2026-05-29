@@ -17,7 +17,9 @@
 | Keep Distance attribute in gene tree     | Lenny   | ❗ NO  | ❗ NO |
 | Hybrid-Node-Insertion                    | Lenny   | ❗ NO  | ❗ NO |
 | BIC Cherry Expansion                     | Leah    | ❗ NO  | ❗ NO |
-| GraphOperations: "Contract" and "Extend" | Open    | ❗ NO  | ❗ NO |
+| GraphOperations: "Contract", "Extend", "Delete redundant nodes" | OPEN | ❗ NO  | ❗ NO |
+| Test (bm = weak bm?) with python | OPEN | ❗ NO  | ❗ NO |
+| Implement wbmg_from_tree() | Leo | ❗ NO  | ❗ NO |
 
 ## Help
 
