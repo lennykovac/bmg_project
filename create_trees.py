@@ -1,11 +1,8 @@
 from os import makedirs, path
 import asymmetree.treeevolve as te
-from asymmetree.treeevolve.species import species_tree_n
-from asymmetree.utils import phylogenetic_trees
-from networkx.drawing.nx_pydot import graphviz_layout
+from tralda.datastructures import Tree
 
 import networkx as nx 
-import matplotlib.pyplot as plt
 
 TREE_DIR="./trees/"
 
@@ -15,11 +12,11 @@ NEWICK_SPECIES="./trees/species_tree.txt"
 GML_SPECIES="trees/species_tree.gml"
 GML_GENES="trees/genes_tree.gml"
 
-TRALDA_SPECIES="trees/species_tree.pkl"
-TRALDA_GENES="trees/genes_tree.pkl"
+TRALDA_SPECIES="trees/species_tree.pickle"
+TRALDA_GENES="trees/genes_tree.pickle"
 
 def create_trees():
-    s = te.species_tree_n(5)
+    s = te.species_tree_n(3)
 
     t = te.dated_gene_tree(s, dupl_rate=0.5, loss_rate=0.3, hgt_rate=0.1)
     t = te.rate_heterogeneity(t, s, base_rate=1, autocorr_variance=0.2, rate_increase=("gamma", 0.5, 2.2 ) )
@@ -52,17 +49,19 @@ def save_trees(species_tree, genes_tree):
     nx.write_gml(s_nx, "trees/species_tree.gml")
     nx.write_gml(t_nx, "trees/genes_tree.gml")
 
-    species_tree.serialize(TRALDA_SPECIES, "pickle")
-    genes_tree.serialize(TRALDA_GENES, "pickle")
+    species_tree.serialize(TRALDA_SPECIES)
+    genes_tree.serialize(TRALDA_GENES)
 
 
 def gather_trees() -> tuple:
-    if path.exists(GML_GENES) or path.exists(GML_SPECIES):
-        t = nx.read_gml(GML_GENES)
-        s = nx.read_gml(GML_SPECIES)
+    if path.exists(TRALDA_SPECIES) or path.exists(TRALDA_GENES):
+        t = Tree.load(TRALDA_GENES)
+        s = Tree.load(TRALDA_SPECIES)
       
     else:
         s, t = create_trees()
+        if not path.isdir(TREE_DIR):
+            makedirs(TREE_DIR)
         save_trees(s, t)
     return (s, t)
 
