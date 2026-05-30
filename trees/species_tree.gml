@@ -2,81 +2,49 @@ graph [
   directed 1
   node [
     id 0
-    label "137615003052624"
+    label "139431819794752"
     event "root"
-    tstamp 1.285858197817018
+    tstamp 1.1190075386512655
     dist 0.0
   ]
   node [
     id 1
-    label "137615003086480"
+    label "139431819670736"
     event "S"
-    tstamp 0.4894522222926848
-    dist 0.7964059755243332
+    tstamp 0.9357919820332575
+    dist 0.18321555661800792
     sibling_nr 0
   ]
   node [
     id 2
-    label "137615003086800"
+    label "139431819671056"
     event "S"
-    tstamp 0.47591382090985745
-    dist 0.013538401382827359
+    tstamp 0.5057033265079268
+    dist 0.4300886555253307
     sibling_nr 0
   ]
   node [
     id 3
-    label "137615003068048"
+    label "139431819762592"
     event "S"
     tstamp 0.0
-    dist 0.47591382090985745
+    dist 0.5057033265079268
     sibling_nr 0
   ]
   node [
     id 4
-    label "137615003326112"
+    label "139431819633456"
     event "S"
     tstamp 0.0
-    dist 0.47591382090985745
+    dist 0.5057033265079268
     sibling_nr 1
   ]
   node [
     id 5
-    label "137615007819344"
-    event "S"
-    tstamp 0.4721781397655518
-    dist 0.017274082527133028
-    sibling_nr 1
-  ]
-  node [
-    id 6
-    label "137615003437216"
-    event "S"
-    tstamp 0.3551817186499683
-    dist 0.1169964211155835
-    sibling_nr 0
-  ]
-  node [
-    id 7
-    label "137615003620944"
+    label "139431819762896"
     event "S"
     tstamp 0.0
-    dist 0.3551817186499683
-    sibling_nr 0
-  ]
-  node [
-    id 8
-    label "137615003621200"
-    event "S"
-    tstamp 0.0
-    dist 0.3551817186499683
-    sibling_nr 1
-  ]
-  node [
-    id 9
-    label "137615007596016"
-    event "S"
-    tstamp 0.0
-    dist 0.4721781397655518
+    dist 0.9357919820332575
     sibling_nr 1
   ]
   edge [
@@ -98,21 +66,5 @@ graph [
   edge [
     source 2
     target 4
-  ]
-  edge [
-    source 5
-    target 6
-  ]
-  edge [
-    source 5
-    target 9
-  ]
-  edge [
-    source 6
-    target 7
-  ]
-  edge [
-    source 6
-    target 8
   ]
 ]

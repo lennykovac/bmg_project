@@ -2,91 +2,72 @@ graph [
   directed 1
   node [
     id 0
-    label "137615003456912"
+    label "139431820187536"
     event "S"
     reconc 1
-    tstamp 0.4894522222926848
+    tstamp 0.9357919820332575
     transferred 0
     dist 0.0
   ]
   node [
     id 1
-    label "137615003457072"
+    label "139431820187920"
     event "S"
     reconc 2
-    tstamp 0.47591382090985745
+    tstamp 0.5057033265079268
     transferred 0
-    dist 0.010131113460914547
+    dist 0.3785047383861807
     sibling_nr 0
   ]
   node [
     id 2
-    label "137615003457232"
-    event "S"
+    label "139431818353968"
+    event "D"
+    reconc 2
     reconc 4
-    tstamp 0.0
+    tstamp 0.3845230222083863
     transferred 0
-    dist 0.39219404610552633
+    dist 0.10834403360205982
     sibling_nr 0
   ]
   node [
     id 3
-    label "137615003457392"
+    label "139431818354144"
     event "S"
-    reconc 5
+    reconc 4
     tstamp 0.0
     transferred 0
-    dist 0.36099972164342853
-    sibling_nr 1
+    dist 0.35087319011416185
+    sibling_nr 0
   ]
   node [
     id 4
-    label "137615003457552"
+    label "139431820267824"
     event "S"
-    reconc 3
-    tstamp 0.4721781397655518
+    reconc 4
+    tstamp 0.0
     transferred 0
-    dist 0.012615029961035982
+    dist 0.3437916374259259
     sibling_nr 1
   ]
   node [
     id 5
-    label "137615003456432"
+    label "139431820267984"
     event "S"
-    reconc 7
-    tstamp 0.3551817186499683
-    transferred 0
-    dist 0.08653431301447935
-    sibling_nr 0
-  ]
-  node [
-    id 6
-    label "137615003457712"
-    event "S"
-    reconc 8
+    reconc 5
     tstamp 0.0
     transferred 0
-    dist 0.2604086861000986
-    sibling_nr 0
-  ]
-  node [
-    id 7
-    label "137615003457872"
-    event "S"
-    reconc 9
-    tstamp 0.0
-    transferred 0
-    dist 0.22803223330416908
+    dist 0.44942716037897246
     sibling_nr 1
   ]
   node [
-    id 8
-    label "137615003458032"
+    id 6
+    label "139431820268144"
     event "S"
-    reconc 6
+    reconc 3
     tstamp 0.0
     transferred 0
-    dist 0.30496870591508557
+    dist 1.1804882989962253
     sibling_nr 1
   ]
   edge [
@@ -95,7 +76,7 @@ graph [
   ]
   edge [
     source 0
-    target 4
+    target 6
   ]
   edge [
     source 1
@@ -103,22 +84,14 @@ graph [
   ]
   edge [
     source 1
-    target 3
-  ]
-  edge [
-    source 4
     target 5
   ]
   edge [
-    source 4
-    target 8
+    source 2
+    target 3
   ]
   edge [
-    source 5
-    target 6
-  ]
-  edge [
-    source 5
-    target 7
+    source 2
+    target 4
   ]
 ]
