@@ -12,3 +12,5 @@ lib/
 # Virtual environments
 .venv
 
+# from plotting
+lib/
