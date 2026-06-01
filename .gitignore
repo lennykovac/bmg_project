@@ -6,6 +6,9 @@ dist/
 wheels/
 *.egg-info
 
+# generated from tree visu
+lib/
+
 # Virtual environments
 .venv
 
