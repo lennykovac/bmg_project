@@ -1,5 +1,6 @@
 from os import makedirs, path
 import asymmetree.treeevolve as te
+from asymmetree.analysis.best_matches import bmg_from_tree
 from tralda.datastructures import Tree
 
 import networkx as nx 
@@ -16,15 +17,17 @@ TRALDA_SPECIES="trees/species_tree.pickle"
 TRALDA_GENES="trees/genes_tree.pickle"
 
 def create_trees():
-    s = te.species_tree_n(3)
+    s = te.species_tree_n(4)
 
     t = te.dated_gene_tree(s, dupl_rate=0.5, loss_rate=0.3, hgt_rate=0.1)
     t = te.rate_heterogeneity(t, s, base_rate=1, autocorr_variance=0.2, rate_increase=("gamma", 0.5, 2.2 ) )
     t = te.prune_losses(t)
 
-    return s, t
+    g = bmg_from_tree(t)
 
-def save_trees(species_tree, genes_tree):
+    return s, t, g
+
+def save_trees(species_tree, genes_tree, g):
     s_netwick = species_tree.to_newick()
     t_netwick = genes_tree.to_newick()
 
@@ -49,6 +52,8 @@ def save_trees(species_tree, genes_tree):
     nx.write_gml(s_nx, "trees/species_tree.gml")
     nx.write_gml(t_nx, "trees/genes_tree.gml")
 
+    nx.write_gml(g, "trees/bmg.gml")
+
     species_tree.serialize(TRALDA_SPECIES)
     genes_tree.serialize(TRALDA_GENES)
 
@@ -57,20 +62,21 @@ def gather_trees() -> tuple:
     if path.exists(TRALDA_SPECIES) or path.exists(TRALDA_GENES):
         t = Tree.load(TRALDA_GENES)
         s = Tree.load(TRALDA_SPECIES)
+        g = nx.read_gml('trees/bmg.gml')
       
     else:
-        s, t = create_trees()
+        s, t, g = create_trees()
         if not path.isdir(TREE_DIR):
             makedirs(TREE_DIR)
-        save_trees(s, t)
-    return (s, t)
+        save_trees(s, t, g)
+    return (s, t, g)
 
 def main() -> None:
     if not path.isdir(TREE_DIR):
         makedirs(TREE_DIR)
         print("creating tree files")
-        s, t = create_trees()
-        save_trees(s, t)
+        s, t, g = create_trees()
+        save_trees(s, t, g)
         return
     print("tree files already exist")
 
