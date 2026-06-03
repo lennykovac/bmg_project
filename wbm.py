@@ -1,61 +1,128 @@
+from typing import Hashable
+
+from numpy import empty
 import matplotlib.pyplot as plt
 import networkx as nx
 from asymmetree.analysis.best_matches import bmg_from_tree
 from asymmetree.utils.phylogenetic_trees import random_colored_tree
 from utils.graph_utils import show_graph
+from itertools import combinations
 
 
-def main():
-    n = 2
-    colors = 2
-    bic_tree = random_colored_tree(n, colors)
-    print(bic_tree.to_newick())
-    bmg = bmg_from_tree(bic_tree)
-    nx.draw_networkx(bmg)
-    plt.show()
+def root_from_network(network: nx.DiGraph) -> Hashable:
+
+    roots = [n for n in network.nodes() if network.in_degree(n) == 0]
+
+    if len(roots) != 1:
+        raise ValueError(f"Expected exactly one root, found {len(roots)}")
+
+    root = roots[0]
+
+    return root
 
 
-def leaves_from_network():
-    return 0
+def leaves_from_network(network: nx.DiGraph) -> list[Hashable]:
+
+    return [n for n in network.nodes() if network.out_degree(n) == 0]
+
+# TODO: use reach to construct lca_dict
+def all_lcas_from_network(reach: dict[Hashable, set[Hashable]]) -> set[Hashable]:
+    """Construct LowestCommonAncestor-set for rooted DAG between two nodes
+
+    Args:
+        reach: reachability set for all nodes in relevant DiGraph
+
+    Returns:
+        A set of nodes which are lowest common ancestors of x and y
+    """
+    lca_dict = dict()
+    # get all predecessors of x
+    pred_x = set()
+    for u in reach:
+        if 
+    # get all predecessors of y
+    pred_y = set(network.predecessors(y))
+    done = False
+    while not done:
+        additions = set()
+        for u in pred_y:
+            additions.add(network.predecessors(u))
+        if len(pred_y - additions) == 0:
+            done = True
+        pred_y.add(*additions)
+
+    common_ancestors = set.intersection(pred_x, pred_y)
+
+    # remove all non minimal common ancestors
+    high_ancestors = set()  # ancestors to be removed
+    for u, v in combinations(common_ancestors, 2):
+        if nx.has_path(network, u, v):
+            high_ancestors.add(u)  # v < u, thus remove u from lca
+
+    lca = common_ancestors - high_ancestors
+    return lca
 
 
-# TODO: adapt to networks
+# TODO: fix lca_dict and test function
 def bmg_from_network(
     network: nx.DiGraph,
-) -> nx.DiGraph | tuple[nx.DiGraph, nx.Graph]:
-    """Construct a BMG.
+) -> nx.DiGraph:
+    """Construct a BMG from bic-network.
 
     Args:
         network: A network with leaves that has the `label` and `reconc` attribute set.
 
     Returns:
-        The constructed BMG.
+        The constructed BMG with attributes `label` and `color`
     """
-    if not isinstance(network, nx.DiGraph):
-        raise TypeError("not of type 'Tree'")
 
-    leaves = network.leaf_dict()
+    leaves = leaves_from_network(network)
     bmg = nx.DiGraph()
     colors = set()
+    reach = {
+        n: nx.descendants(network, n) | {n} for n in network.nodes
+    }  # pre-compute reachability in network
 
-    for v in leaves[network.root]:  # how to get all leaves of network?
-        colors.add(v.reconc)
-        bmg.add_node(v.label, color=v.reconc)
+    # collect all leaves and colors
+    for v in leaves:
+        colors.add(network.nodes[v]["reconc"])
+        bmg.add_node(network.nodes[v]["label"], color=network.nodes[v]["reconc"])
 
-    for u in leaves[network.root]:
-        remaining = colors - set(
-            [u.reconc]
-        )  # colors to which no best match has yet been found
-        parent = u.parent  # parent no longer unique! How to traverse network backwards? variable tuples of vertices?
+    # collect all pairs of different color
+    pairs = [
+        (u, v)
+        for u, v in combinations(leaves, 2)
+        if network.nodes[u]["reconc"] != network.nodes[v]["reconc"]
+    ]
 
-        while remaining and parent:  # exclude root and processed vertices
-            colors_here = set()
-            for v in leaves[parent]:  # leaves in subtree of parent??
-                if v.reconc in remaining:  # best match found
-                    colors_here.add(v.reconc)
-                    bmg.add_edge(u.label, v.label)
-            remaining -= colors_here
-            parent = parent.parent
+    # create dict with pair -> LCA(pair) mapping
+    lca_dict = dict()
+    for x, y in pairs:
+        lca_dict.update({(x, y): lca_from_network(network, x, y)})
+
+    # check bm property for each pair
+    delete_keys = set()
+    for x, y in lca_dict.keys():
+        # find all y' with same color as y
+        alt_y = [
+            u
+            for u in network.nodes
+            if network.nodes[u]["reconc"] == network.nodes[y]["reconc"]
+        ]
+        # iterate over lca(x, y') --> ALREADY IN lca_dict!!!!
+        for ay in alt_y:
+            lca_alt_y = lca_dict[(x, ay)]
+            for u in lca_alt_y:
+                for v in lca_dict[(x, y)]:
+                    if u in reach[v]:  # i.e. u<v
+                        delete_keys.add((x, y))
+    # delete all marked keys from dict
+    for x, y in delete_keys:
+        lca_dict.pop((x, y))
+
+    # add remaining bmg edges to bmg
+    for x, y in lca_dict:
+        bmg.add_edge(x, y)
 
     return bmg
 
@@ -68,24 +135,15 @@ GOAL: experiment towards bmg & wbmg from networks
 if __name__ == "__main__":
     G = nx.DiGraph()
 
-    G.add_node(0, label="0", color="0")
-    G.add_node(1, label="1", color="0")
-    G.add_node(2, label="2", color="0")
-    G.add_node(3, label="3", color="0")
-    G.add_node(4, label="4", color="1")
-    G.add_node(5, label="5", color="1")
-    G.add_node(6, label="6", color="0")
-    G.add_node(7, label="7", color="0")
+    G.add_node(0, label="0", reconc="0")
+    G.add_node(1, label="1", reconc="0")
+    G.add_node(2, label="2", reconc="0")
+    G.add_node(3, label="3", reconc="0")
+    G.add_node(4, label="4", reconc="0")
+    G.add_node(5, label="5", reconc="1")
+    G.add_node(6, label="6", reconc="0")
 
-    G.add_edges_from([(0, 1), (0, 2), (1, 3), (2, 3), (1, 4), (3, 5), (3, 6), (2, 7)])
+    G.add_edges_from([(0, 1), (0, 2), (1, 3), (2, 4), (1, 4), (3, 5), (3, 6), (2, 5)])
 
-    # show_graph(G)
-    roots = [n for n in G.nodes() if G.in_degree(n) == 0]
-
-    if len(roots) != 1:
-        raise ValueError(f"Expected exactly one root, found {len(roots)}")
-
-    root = roots[0]
-    print(root)
-    leaves = [n for n in G.nodes() if G.out_degree(n) == 0]
-    print(leaves)
+    bmg = bmg_from_network(G)
+    show_graph(bmg)
