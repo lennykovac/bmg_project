@@ -2,7 +2,7 @@ from typing import Hashable
 
 import networkx as nx
 from utils.graph_utils import show_graph
-from itertools import combinations, permutations
+from itertools import permutations
 
 
 def root_from_network(network: nx.DiGraph) -> Hashable:
@@ -22,7 +22,6 @@ def leaves_from_network(network: nx.DiGraph) -> list[Hashable]:
     return [n for n in network.nodes() if network.out_degree(n) == 0]
 
 
-# TODO: test function
 def bmg_from_network(
     network: nx.DiGraph,
 ) -> nx.DiGraph:
@@ -69,7 +68,7 @@ def bmg_from_network(
 
         # remove all non minimal common ancestors
         high_ancestors = set()  # ancestors to be removed
-        for u, v in combinations(common_ancestors, 2):
+        for u, v in permutations(common_ancestors, 2):
             if nx.has_path(network, u, v):
                 high_ancestors.add(u)  # v < u, thus remove u from lca
 
@@ -109,6 +108,7 @@ def bmg_from_network(
 GOAL: experiment towards bmg & wbmg from networks
 """
 if __name__ == "__main__":
+    # Leahs example where bmg != wbmg
     G = nx.DiGraph()
 
     G.add_node(0, label="0", reconc="0")
