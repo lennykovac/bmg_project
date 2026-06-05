@@ -9,6 +9,7 @@ if __name__ == "__main__":
 
     gene_tree_di_graph = trees.gene_tree
     species_tree_di_graph = trees.gene_tree
+    print("leah war hier")
 
     G_transformed = transform(gene_tree_di_graph, 10)
     show_graph(G_transformed)
