@@ -19,7 +19,8 @@
 | BIC Cherry Expansion                     | Leah    | ❗ NO  | ❗ NO |
 | GraphOperations: "Contract", "Extend", "Delete redundant nodes" | OPEN | ❗ NO  | ❗ NO |
 | Test (bm = weak bm?) with python | OPEN | ❗ NO  | ❗ NO |
-| Implement wbmg_from_tree() | Leo | ❗ NO  | ❗ NO |
+| Implement wbmg_from_network() | Leo | ❗ NO  | ❗ NO |
+| Implement bmg_from_network() | Leo |  YES(1)  | YES |
 
 ## Help
 
@@ -28,3 +29,8 @@
 ```
 uv run main.py
 ```
+or
+```
+uv run pytest
+```
+for testing
