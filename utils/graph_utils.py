@@ -121,6 +121,52 @@ def leaves_from_network(network: nx.DiGraph) -> list[Hashable]:
     return [n for n in network.nodes() if network.out_degree(n) == 0]
 
 
+def lca_dict_from_network(
+    network: nx.DiGraph,
+    reach: dict[Hashable, set[Hashable]],
+    leaves: list[Hashable],
+) -> dict[tuple[Hashable, Hashable], set[Hashable]]:
+    """Compute dict with all LCAs in network
+
+    Args:
+        network: network with leaves that have the `label` and `reconc` attributes set.
+        reach: reachability sets for all nodes in network (for example see bmg_from_network)
+        leaves: leafset of network
+
+    """
+
+    # collect all pairs of different color
+    pairs = [
+        (u, v)
+        for u, v in permutations(leaves, 2)
+        if network.nodes[u]["reconc"] != network.nodes[v]["reconc"]
+    ]
+
+    # create dict with pair -> LCA(pair) mapping
+    lca_dict = dict()
+    for x, y in pairs:
+        pred_x = set()
+        pred_y = set()
+        for z in reach:
+            if x in reach[z]:
+                pred_x.add(z)
+            if y in reach[z]:
+                pred_y.add(z)
+
+        common_ancestors = set.intersection(pred_x, pred_y)
+
+        # remove all non minimal common ancestors
+        eliminate_ancestors = set()  # ancestors to be removed
+        for u, v in permutations(common_ancestors, 2):
+            if v in reach[u]:
+                eliminate_ancestors.add(u)  # v < u, thus remove u from lca
+
+        lca = common_ancestors - eliminate_ancestors
+        lca_dict.update({(x, y): lca})
+
+    return lca_dict
+
+
 def bmg_from_network(
     network: nx.DiGraph,
 ) -> nx.DiGraph:
@@ -145,34 +191,7 @@ def bmg_from_network(
         colors.add(network.nodes[v]["reconc"])
         bmg.add_node(v, color=network.nodes[v]["reconc"])
 
-    # collect all pairs of different color
-    pairs = [
-        (u, v)
-        for u, v in permutations(leaves, 2)
-        if network.nodes[u]["reconc"] != network.nodes[v]["reconc"]
-    ]
-
-    # create dict with pair -> LCA(pair) mapping
-    lca_dict = dict()
-    for x, y in pairs:
-        pred_x = set()
-        pred_y = set()
-        for z in reach:
-            if x in reach[z]:
-                pred_x.add(z)
-            if y in reach[z]:
-                pred_y.add(z)
-
-        common_ancestors = set.intersection(pred_x, pred_y)
-
-        # remove all non minimal common ancestors
-        high_ancestors = set()  # ancestors to be removed
-        for u, v in permutations(common_ancestors, 2):
-            if nx.has_path(network, u, v):
-                high_ancestors.add(u)  # v < u, thus remove u from lca
-
-        lca = common_ancestors - high_ancestors
-        lca_dict.update({(x, y): lca})
+    lca_dict = lca_dict_from_network(network, reach, leaves)
 
     # check bm property for each pair
     delete_keys = set()
@@ -199,6 +218,63 @@ def bmg_from_network(
         bmg.add_edge(x, y)
 
     return bmg
+
+
+def wbmg_from_network(
+    network: nx.DiGraph,
+) -> nx.DiGraph:
+    """Construct a WBMG from bic-network.
+
+    Args:
+        network: A network with leaves that has the `label` and `reconc` attribute set.
+
+    Returns:
+        The constructed WBMG with attributes `label` and `color`
+    """
+
+    leaves = leaves_from_network(network)
+    wbmg = nx.DiGraph()
+    colors = set()
+    reach = {
+        n: nx.descendants(network, n) for n in network.nodes
+    }  # pre-compute reachability in network as dict[{v:descendants of v}]
+
+    # collect all leaves and colors
+    for v in leaves:
+        colors.add(network.nodes[v]["reconc"])
+        wbmg.add_node(v, color=network.nodes[v]["reconc"])
+
+    lca_dict = lca_dict_from_network(network, reach, leaves)
+
+    # check bm property for each pair
+    delete_keys = set()
+    for x, y in lca_dict.keys():
+        # compute Q
+        alt_y = [
+            n
+            for n in leaves
+            if network.nodes[n]["reconc"] == network.nodes[y]["reconc"]
+        ]
+        q = set()
+        for element in alt_y:
+            q |= lca_dict[(x, element)]
+        eliminate_q = set()
+        for u, v in permutations(q, 2):
+            if v in reach[u]:
+                eliminate_q.add(u)
+        q = q - eliminate_q
+        # check intersection of lca is non-empty
+        if len(set.intersection(lca_dict[(x, y)], q)) == 0:
+            delete_keys.add((x, y))
+    # delete all marked keys from dict
+    for x, y in delete_keys:
+        lca_dict.pop((x, y))
+
+    # add remaining wbmg edges to wbmg
+    for x, y in lca_dict:
+        wbmg.add_edge(x, y)
+
+    return wbmg
 
 
 if __name__ == "__main__":

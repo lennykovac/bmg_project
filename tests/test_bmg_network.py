@@ -1,9 +1,6 @@
 import networkx as nx
-from numpy import exp
-from utils.graph_utils import show_graph
-from utils.graph_utils import bmg_from_network
+from utils.graph_utils import bmg_from_network, wbmg_from_network
 import pytest
-# from utils.graph_utils import wbmg_from_network # TODO:
 
 
 @pytest.fixture
@@ -27,7 +24,22 @@ def sample_graph_1():
 def test_bmg_structure(sample_graph_1):
 
     bmg = bmg_from_network(sample_graph_1)
-    # wbmg = wbmg_from_network(G) # TODO:
-    actual = list(bmg.nodes(data=True))
-    expected = [(4, {"color": "0"}), (5, {"color": "1"}), (6, {"color": "0"})]
-    assert actual == expected
+    actual_nodes = list(bmg.nodes(data=True))
+    expected_nodes = [(4, {"color": "0"}), (5, {"color": "1"}), (6, {"color": "0"})]
+    assert actual_nodes == expected_nodes
+
+    actual_edges = list(bmg.edges())
+    expected_edges = [(4, 5), (5, 6), (6, 5)]
+    assert actual_edges == expected_edges
+
+
+def test_wbmg_structure(sample_graph_1):
+
+    bmg = wbmg_from_network(sample_graph_1)
+    actual_nodes = list(bmg.nodes(data=True))
+    expected_nodes = [(4, {"color": "0"}), (5, {"color": "1"}), (6, {"color": "0"})]
+    assert actual_nodes == expected_nodes
+
+    actual_edges = list(bmg.edges())
+    expected_edges = [(4, 5), (5, 4), (5, 6), (6, 5)]
+    assert actual_edges == expected_edges
