@@ -18,7 +18,7 @@
 | Hybrid-Node-Insertion                                           | Lenny   | ❗ NO  | ❗ NO |
 | BIC Cherry Expansion                                            | Leah    | ❗ NO  | ❗ NO |
 | GraphOperations: "Contract", "Extend", "Delete redundant nodes" | OPEN    | ❗ NO  | ❗ NO |
-| Test (bm = weak bm?) with python                                | OPEN    | ❗ NO  | ❗ NO |
+| Test (bm = weak bm?) with python                                | Leo    | ❗ NO  | ❗ NO |
 | Implement wbmg_from_network() | Leo |  YES(1)  | ✅ |
 | Implement bmg_from_network() | Leo |  YES(1)  | ✅ |
 
