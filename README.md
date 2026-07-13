@@ -6,21 +6,29 @@
 
 1. Compare the definition of best matches and weak best matches:
    1. Check whether every best match in (N, σ) is also a weak best match. Test this computationally, but also try to give a formal argument.
-   2. Check if a modified version of the BIC-cherry + expansion procedureyields networks that explain weak best match graphs.
+   2. Check if a modified version of the BIC-cherry + expansion procedure yields networks that explain weak best match graphs.
 2. Find a way to edit the explaining networks for (weak) best matches to become more tree like.
 
 ## 📌 Tasks
 
 | Todo                                                            | Name    | Tested | Done  |
 | --------------------------------------------------------------- | ------- | ------ | ----- |
+| Hybrid-Node-Insertion (0)                                          | Lenny   | ❗ NO  | ❗ NO |
+| BIC Cherry Expansion (1a)                                           | Leah    | ❗ NO  | ❗ NO |
+| BIC Cherry Expansion - restricted to accepting edges (1b)                                           | OPEN    | ❗ NO  | ❗ NO |
+| Unit tests for algos (ongoing, 1c) | OPEN    | ❗ NO  | ❗ NO |
+| GraphOperations: "Pull-Up", "Pull-down", "Delete redundant nodes" (2c) | OPEN    | ❗ NO  | ❗ NO |
+| Test (bm = weak bm?) with python (Obj. 1a)                               | Leo    | ❗ NO  | ❗ NO |
+| Test if 1b is explanation for wbm Graphs (1d)                  | Leah    | ❗ NO  | ❗ NO |
+
+
+
+| Finished Tasks | Name    | Tested (as in 1c?) | Done  |
+| --------------------------------------------------------------- | ------- | ------ | ----- |
 | **LEAH GITHUB SSH AUTH**                                        | **ALL** | ❗ YES | ✅    |
 | Keep Distance attribute in gene tree                            | Lenny   | ❗ YES | ✅    |
-| Hybrid-Node-Insertion                                           | Lenny   | ❗ NO  | ❗ NO |
-| BIC Cherry Expansion                                            | Leah    | ❗ NO  | ❗ NO |
-| GraphOperations: "Contract", "Extend", "Delete redundant nodes" | OPEN    | ❗ NO  | ❗ NO |
-| Test (bm = weak bm?) with python                                | Leo    | ❗ NO  | ❗ NO |
-| Implement wbmg_from_network() | Leo |  YES(1)  | ✅ |
-| Implement bmg_from_network() | Leo |  YES(1)  | ✅ |
+| Implement wbmg_from_network() | Leo |  YES?(1)  | ✅ |
+| Implement bmg_from_network() | Leo |  YES?(1)  | ✅ |
 
 ## Help
 
