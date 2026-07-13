@@ -19,7 +19,7 @@
 | Unit tests for algos (ongoing, 1c) | OPEN    | ❗ NO  | ❗ NO |
 | GraphOperations: "Pull-Up", "Pull-down", "Delete redundant nodes" (2c) | OPEN    | ❗ NO  | ❗ NO |
 | Test (bm = weak bm?) with python (Obj. 1a)                               | Leo    | ❗ NO  | ❗ NO |
-| Test if 1b is explanation for wbm Graphs (1d)                  | Leah    | ❗ NO  | ❗ NO |
+| Test if 1b is explanation for wbm Graphs (1d)                  | OPEN | ❗ NO  | ❗ NO |
 
 
 
