@@ -1,9 +1,10 @@
-from create_trees import gather_trees
-import matplotlib.pyplot as plt
+from os import path
+from bmg import load_bmg
 
 import networkx as nx
 
-AVAILABLE_COLORS = ['tab:red', 'tab:blue', 'tab:green', 'tab:yellow', 'tab:cyan', 'tab:purple', 'tab:gray', 'tab:orange']
+AVAILABLE_COLORS = ['tab:red', 'tab:blue', 'tab:green', 'tab:orange', 'tab:cyan', 'tab:purple', 'tab:gray']
+BIC_FILE='trees/bic_cherry.gml'
 
 def build_species_color_map(bmg, colors: list[str]) -> dict:
     species_color_map = dict()
@@ -20,8 +21,9 @@ def init_graph(bmg, colors) -> nx.DiGraph:
     graph.add_node("r", color="black", kind='root', layer=3, label="Root")
 
     for node, data in bmg.nodes(data=True):
-        node_species = data.get("color", "None")
-        graph.add_node(node, color=colors[node_species], kind='leaf', layer=0, label=node)
+        node_color = data.get("color", "None")
+        node_species = data.get("species", "None")
+        graph.add_node(node, species=node_species, color=node_color, kind='leaf', layer=0, label=node)
     return graph
 
 def add_cherry_parents(graph: nx.DiGraph) -> nx.DiGraph:
@@ -61,59 +63,26 @@ def bic_extension(graph: nx.DiGraph, parent_node, child_node, extension_leaf_nod
         return graph
     return graph
 
-def draw_graph(graph: nx.DiGraph) -> None:
-    node_colors = list()
-    node_sizes = list()
-    node_labels = list()
-    edge_colors = list()
-
-    for name, data in graph.nodes(data=True):
-        node_sizes.append(data.get('size', 10000))
-        node_colors.append(data.get('color', 'lightgray'))
-        node_labels.append(data.get('label', name))
-
-    for origin, target, data in graph.edges(Data=True):
-        edge_colors.append(data.get('edge_color', 'black'))
-
-    pos = nx.multipartite_layout(graph, subset_key='layer', align='horizontal')
-
-    nx.draw_networkx_nodes(
-        graph,
-        pos=pos,
-        node_color=node_colors,
-        node_size=node_sizes,
-        linewidths=3.0,
-        edgecolors="black",
-    )
-
-    nx.draw_networkx_edges(
-        graph,
-        pos=pos,
-        edge_color=edge_colors,
-        arrows_size=20,
-        width=5,
-        node_size=node_sizes,
-    )
-
-    nx.draw_networkx_labels(
-        graph,
-        pos=pos,
-        font_weight=1000,
-        font_size=20,
-        font_color="White",
-    )
-
-    plt.show()
-    return
+def save_cherry(graph: nx.DiGraph):
+    print("saving bic_cherry")
+    nx.write_gml(graph, BIC_FILE)
+    
+def load_cherry():
+    print("loading bic_cherry")
+    return nx.read_gml(BIC_FILE)
 
 def main():
-    s, t = gather_trees()
+    s, t, g = load_bmg()
 
-    species_color_map = build_species_color_map(t, AVAILABLE_COLORS)
-    bic_cherry = init_graph(t, species_color_map)
-    bic_cherry = add_cherry_parents(bic_cherry)
-    bic_cherry = bic_extension(bic_cherry, "p_3-7", 7, 5)
-    draw_graph(bic_cherry)
+    if path.exists(BIC_FILE):
+        return load_cherry()
+    else:
+        species_color_map = build_species_color_map(g, AVAILABLE_COLORS)
+        bic_cherry = init_graph(g, species_color_map)
+        bic_cherry = add_cherry_parents(bic_cherry)
+        save_cherry(bic_cherry)
+        # bic_cherry = bic_extension(bic_cherry, "p_3-7", 7, 5)
+        # draw_graph(bic_cherry)
 
 if __name__ == "__main__":
     main()

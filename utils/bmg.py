@@ -16,6 +16,10 @@ GML_GENES="trees/genes_tree.gml"
 TRALDA_SPECIES="trees/species_tree.pickle"
 TRALDA_GENES="trees/genes_tree.pickle"
 
+BMG_FILE="trees/bmg.gml"
+
+AVAILABLE_COLORS = ['tab:red', 'tab:blue', 'tab:green', 'tab:orange', 'tab:cyan', 'tab:purple', 'tab:gray']
+
 def create_trees():
     s = te.species_tree_n(4)
 
@@ -23,11 +27,20 @@ def create_trees():
     t = te.rate_heterogeneity(t, s, base_rate=1, autocorr_variance=0.2, rate_increase=("gamma", 0.5, 2.2 ) )
     t = te.prune_losses(t)
 
-    g = bmg_from_tree(t)
 
-    return s, t, g
+    return s, t
 
-def save_trees(species_tree, genes_tree, g):
+def build_species_color_map(bmg, colors: list[str]) -> dict:
+    species_color_map = dict()
+    for node, data in bmg.nodes(data=True):
+        node_species = data.get("color", "None")
+
+        if node_species not in species_color_map.keys():
+            species_color_map[node_species] = colors.pop(0)
+
+    return species_color_map
+
+def save_graphs(species_tree, genes_tree, g, color_map: dict):
     s_netwick = species_tree.to_newick()
     t_netwick = genes_tree.to_newick()
 
@@ -45,9 +58,10 @@ def save_trees(species_tree, genes_tree, g):
                 data[k] = "root"
             data["dist"] = float(data["dist"])
 
-    for node, data in t_nx.nodes.data():
-        for k, v in data.items():
-            data["dist"] = float(data["dist"])
+    for node, data in t_nx.nodes(data=True):
+        data["dist"] = float(data["dist"])
+        # data['species'] = data.get('reconc', 'None')
+        data['color'] = color_map.get(data.get('reconc', 'lightgray'), 'lightgray')
 
     nx.write_gml(s_nx, "trees/species_tree.gml")
     nx.write_gml(t_nx, "trees/genes_tree.gml")
@@ -58,27 +72,35 @@ def save_trees(species_tree, genes_tree, g):
     genes_tree.serialize(TRALDA_GENES)
 
 
-def gather_trees() -> tuple:
+def load_bmg() -> tuple:
     if path.exists(TRALDA_SPECIES) or path.exists(TRALDA_GENES):
-        t = Tree.load(TRALDA_GENES)
+        t = nx.read_gml(GML_GENES)
         s = Tree.load(TRALDA_SPECIES)
-        g = nx.read_gml('trees/bmg.gml')
+        g = nx.read_gml(BMG_FILE)
       
     else:
-        s, t, g = create_trees()
+        s, t = create_trees()
+        g = bmg_from_tree(t)
         if not path.isdir(TREE_DIR):
             makedirs(TREE_DIR)
-        save_trees(s, t, g)
+        save_graphs(s, t, g. color_map)
     return (s, t, g)
 
-def main() -> None:
+def main():
     if not path.isdir(TREE_DIR):
         makedirs(TREE_DIR)
         print("creating tree files")
-        s, t, g = create_trees()
-        save_trees(s, t, g)
+        s, t = create_trees()
+        g = bmg_from_tree(t)
+        color_map = build_species_color_map(g, AVAILABLE_COLORS)
+        for node, data in g.nodes(data=True):
+            data['species'] = data.get('color', 'None')
+            data['color'] = color_map[data.get('color', 'None')]
+
+        save_graphs(s, t, g, color_map)
         return
-    print("tree files already exist")
+    else:
+        return load_bmg()
 
 if __name__ == "__main__":
     main()
