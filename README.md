@@ -18,7 +18,6 @@
 | BIC Cherry Expansion - restricted to accepting edges (1b)                                           | OPEN    | ❗ NO  | ❗ NO |
 | Unit tests for algos (ongoing, 1c) | OPEN    | ❗ NO  | ❗ NO |
 | GraphOperations: "Pull-Up", "Pull-down", "Delete redundant nodes" (2c) | OPEN    | ❗ NO  | ❗ NO |
-| Test (bm = weak bm?) with python (Obj. 1a)                               | Leo    | ❗ NO  | ❗ NO |
 | Test if 1b is explanation for wbm Graphs (1d == Obj. 1b?)                  | OPEN | ❗ NO  | ❗ NO |
 
 
@@ -29,6 +28,7 @@
 | Keep Distance attribute in gene tree                            | Lenny   | ❗ YES | ✅    |
 | Implement wbmg_from_network() | Leo |  YES?(1)  | ✅ |
 | Implement bmg_from_network() | Leo |  YES?(1)  | ✅ |
+| Test (bm = weak bm?) with python (Obj. 1a)                               | Leo    | Yes (min. examples)  | Yes |
 
 ## Help
 
