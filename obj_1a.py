@@ -1,4 +1,4 @@
-from utils.graph_utils import show_graph, transform, bmg_from_network, wbmg_from_network
+from utils.graph_utils import transform, bmg_from_network, wbmg_from_network
 from utils.tree_utils import create_gene_tree
 import networkx as nx
 

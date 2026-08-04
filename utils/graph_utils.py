@@ -12,6 +12,7 @@ from typing import Hashable
 from itertools import permutations
 import networkx as nx
 from pyvis.network import Network
+from collections import Counter
 
 
 def show_graph(di_graph: nx.DiGraph):
@@ -275,6 +276,25 @@ def wbmg_from_network(
         wbmg.add_edge(x, y)
 
     return wbmg
+
+
+def check_sicorinhub(G: nx.DiGraph):
+    """
+    Checks if given DiGraph has the sicor-in-hub property.
+
+    Parameters:
+    G: DiGraph with no self-loops! BMGs and WBMGs should not have self loops.
+
+    Returns:
+    Boolean value True, iff G has sicor-in-hub property.
+    """
+    color_counts = Counter(nx.get_node_attributes(G, "reconc").values())
+    unique_nodes = [n for n, d in G.nodes(data=True) if color_counts[d["reconc"]] == 1]
+    for n in unique_nodes:
+        # because no Multigraph and self-loop-free
+        if G.in_degree(n) != G.number_of_nodes() - 1:
+            return False
+    return True
 
 
 if __name__ == "__main__":
