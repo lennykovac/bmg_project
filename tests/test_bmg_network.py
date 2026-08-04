@@ -28,27 +28,27 @@ def sample_graph_1():
 
 
 # test only works, when transform/addhybrid nodes works properly!!
-# def test_sicorinhub():
-#     # generate 10 random gene networks
-#     species = 2
-#     species_tree_age = 1
-#     for i in range(10):
-#         trees = create_gene_tree(species, species_tree_age)
-#
-#         gene_tree_di_graph = trees.gene_tree
-#
-#         G_transformed = transform(gene_tree_di_graph, 10)
-#         # compute the bmg
-#         bmg = bmg_from_network(G_transformed)
-#         wbmg = wbmg_from_network(G_transformed)
-#         # check self-loop free
-#         for n in bmg.nodes:
-#             assert not bmg.has_edge(n, n)
-#         for n in wbmg.nodes:
-#             assert not wbmg.has_edge(n, n)
-#         # check sicor-in-hub property
-#         assert check_sicorinhub(bmg)
-#         assert check_sicorinhub(wbmg)
+def test_sicorinhub():
+    # generate 10 random gene networks
+    species = 10
+    species_tree_age = 1
+    for i in range(10):
+        trees = create_gene_tree(species, species_tree_age)
+
+        gene_tree_di_graph = trees.gene_tree
+
+        G_transformed = transform(gene_tree_di_graph, 10)
+        # compute the bmg
+        bmg = bmg_from_network(G_transformed)
+        wbmg = wbmg_from_network(G_transformed)
+        # check self-loop free
+        for n in bmg.nodes:
+            assert not bmg.has_edge(n, n)
+        for n in wbmg.nodes:
+            assert not wbmg.has_edge(n, n)
+        # check sicor-in-hub property
+        assert check_sicorinhub(bmg, G_transformed)
+        assert check_sicorinhub(wbmg, G_transformed)
 
 
 def test_bmg_structure(sample_graph_1):

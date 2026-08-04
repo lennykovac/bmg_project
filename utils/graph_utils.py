@@ -65,7 +65,7 @@ def add_hybrid_node(
     hybrid: hybrid node which gets another parent (donor)
     """
     # we have to check if a path exists from the source of the donor edge to the source of the hybrid edge
-    if nx.has_path(G, donor_edge[0], hybrid_edge[0]):
+    if nx.has_path(G, hybrid_edge[0], donor_edge[0]):
         print("Cant insert hybrid node")
         # raise Exception("Cant insert hybrid. It would make the Graph cyclic.")
     else:
@@ -100,7 +100,7 @@ def transform(graph: nx.DiGraph, no_of_hybrid_nodes: int) -> nx.DiGraph:
         e0, e1 = random.sample(edge_list, 2)
 
         # TODO: Think of a naming convention for hybrid nodes.
-        add_hybrid_node(e0, e1, f"{0}_d", f"{0}_h", transformer_graph)
+        add_hybrid_node(e0, e1, f"{i}_d", f"{i}_h", transformer_graph)
 
     return transformer_graph
 
@@ -279,7 +279,7 @@ def wbmg_from_network(
 
 
 # used in testing if bmg/wbmg_from_network works correctly
-def check_sicorinhub(G: nx.DiGraph):
+def check_sicorinhub(G: nx.DiGraph, G_input):
     """
     Checks if given DiGraph has the sicor-in-hub property.
 
@@ -294,6 +294,11 @@ def check_sicorinhub(G: nx.DiGraph):
     for n in unique_nodes:
         # because no Multigraph and self-loop-free
         if G.in_degree(n) != G.number_of_nodes() - 1:
+            print(list(G_input.nodes(data="reconc")))
+            print(list(G_input.edges()))
+            print("Node failed:", n)
+            print("in degree: ", G.in_degree(n))
+            print("expected in degree: ", G.number_of_nodes() - 1)
             return False
     return True
 
