@@ -279,7 +279,7 @@ def wbmg_from_network(
 
 
 # used in testing if bmg/wbmg_from_network works correctly
-def check_sicorinhub(G: nx.DiGraph, G_input):
+def check_sicorinhub(G: nx.DiGraph):
     """
     Checks if given DiGraph has the sicor-in-hub property.
 
@@ -294,11 +294,6 @@ def check_sicorinhub(G: nx.DiGraph, G_input):
     for n in unique_nodes:
         # because no Multigraph and self-loop-free
         if G.in_degree(n) != G.number_of_nodes() - 1:
-            print(list(G_input.nodes(data="reconc")))
-            print(list(G_input.edges()))
-            print("Node failed:", n)
-            print("in degree: ", G.in_degree(n))
-            print("expected in degree: ", G.number_of_nodes() - 1)
             return False
     return True
 

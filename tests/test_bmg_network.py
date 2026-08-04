@@ -47,8 +47,8 @@ def test_sicorinhub():
         for n in wbmg.nodes:
             assert not wbmg.has_edge(n, n)
         # check sicor-in-hub property
-        assert check_sicorinhub(bmg, G_transformed)
-        assert check_sicorinhub(wbmg, G_transformed)
+        assert check_sicorinhub(bmg)
+        assert check_sicorinhub(wbmg)
 
 
 def test_bmg_structure(sample_graph_1):
