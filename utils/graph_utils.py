@@ -278,6 +278,7 @@ def wbmg_from_network(
     return wbmg
 
 
+# used in testing if bmg/wbmg_from_network works correctly
 def check_sicorinhub(G: nx.DiGraph):
     """
     Checks if given DiGraph has the sicor-in-hub property.
@@ -288,8 +289,8 @@ def check_sicorinhub(G: nx.DiGraph):
     Returns:
     Boolean value True, iff G has sicor-in-hub property.
     """
-    color_counts = Counter(nx.get_node_attributes(G, "reconc").values())
-    unique_nodes = [n for n, d in G.nodes(data=True) if color_counts[d["reconc"]] == 1]
+    color_counts = Counter(nx.get_node_attributes(G, "color").values())
+    unique_nodes = [n for n, d in G.nodes(data=True) if color_counts[d["color"]] == 1]
     for n in unique_nodes:
         # because no Multigraph and self-loop-free
         if G.in_degree(n) != G.number_of_nodes() - 1:
