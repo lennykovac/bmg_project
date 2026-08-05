@@ -15,7 +15,9 @@ def bic_cherry(bmg: nx.DiGraph):
     """
     # construct BIC-cherry network
     network = nx.DiGraph()
-    network.add_nodes_from(bmg.nodes(data="color"))
+    network.add_nodes_from(  # careful: bmg.nodes(data="color") returns a tuple, not a dict!
+        (n, {"color": color}) for n, color in bmg.nodes(data="color")
+    )
 
     # find all pairs of different colored nodes
     color_groups = {}  # build dict with with list of all nodes by color
@@ -29,9 +31,9 @@ def bic_cherry(bmg: nx.DiGraph):
         pairs.extend(product(color_groups[x], color_groups[y]))
 
     # build root and basic parent nodes and basic edges
-    network.add_node("R")  # new root
+    network.add_node("R", color=None)  # new root
     for x, y in pairs:
-        network.add_node(f"p{x}{y}")
+        network.add_node(f"p{x}{y}", color=None)
         network.add_edge("R", f"p{x}{y}")
         network.add_edge(f"p{x}{y}", x)
         network.add_edge(f"p{x}{y}", y)
@@ -53,7 +55,7 @@ def bic_cherry_extension(bmg):
             for n, color in bmg.nodes(data="color")
             if n != y and color == bmg.nodes[y]["color"]
         ][0]
-        network.add_node(f"q{x}{z}")
+        network.add_node(f"q{x}{z}", color=None)
         network.add_edge(f"p{x}{y}", f"q{x}{z}")
         network.add_edge(f"q{x}{z}", x)
         network.add_edge(f"q{x}{z}", z)

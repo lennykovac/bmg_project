@@ -90,7 +90,11 @@ def transform(graph: nx.DiGraph, no_of_hybrid_nodes: int) -> nx.DiGraph:
     Returns:
     A nx.DiGraph object.
     """
-    # keep old data intact for now
+    # rename "reconc" to "color"
+    for node in graph.nodes:
+        if "reconc" in graph.nodes[node]:
+            graph.nodes[node]["color"] = graph.nodes[node].pop("reconc")
+
     transformer_graph = graph
     # get all edges
     edge_list = graph.edges
@@ -140,7 +144,7 @@ def lca_dict_from_network(
     pairs = [
         (u, v)
         for u, v in permutations(leaves, 2)
-        if network.nodes[u]["reconc"] != network.nodes[v]["reconc"]
+        if network.nodes[u]["color"] != network.nodes[v]["color"]
     ]
 
     # create dict with pair -> LCA(pair) mapping
@@ -174,7 +178,7 @@ def bmg_from_network(
     """Construct a BMG from bic-network.
 
     Args:
-        network: A network with leaves that has the `label` and `reconc` attribute set.
+        network: A network with leaves that has the `label` and `color` attribute set.
 
     Returns:
         The constructed BMG with attributes `label` and `color`
@@ -189,8 +193,8 @@ def bmg_from_network(
 
     # collect all leaves and colors
     for v in leaves:
-        colors.add(network.nodes[v]["reconc"])
-        bmg.add_node(v, color=network.nodes[v]["reconc"])
+        colors.add(network.nodes[v]["color"])
+        bmg.add_node(v, color=network.nodes[v]["color"])
 
     lca_dict = lca_dict_from_network(network, reach, leaves)
 
@@ -199,9 +203,7 @@ def bmg_from_network(
     for x, y in lca_dict.keys():
         # find all y' with same color as y
         alt_y = [
-            u
-            for u in leaves
-            if network.nodes[u]["reconc"] == network.nodes[y]["reconc"]
+            u for u in leaves if network.nodes[u]["color"] == network.nodes[y]["color"]
         ]
         # iterate over lca(x, y') --> ALREADY IN lca_dict!!!!
         for ay in alt_y:
@@ -242,8 +244,8 @@ def wbmg_from_network(
 
     # collect all leaves and colors
     for v in leaves:
-        colors.add(network.nodes[v]["reconc"])
-        wbmg.add_node(v, color=network.nodes[v]["reconc"])
+        colors.add(network.nodes[v]["color"])
+        wbmg.add_node(v, color=network.nodes[v]["color"])
 
     lca_dict = lca_dict_from_network(network, reach, leaves)
 
@@ -252,9 +254,7 @@ def wbmg_from_network(
     for x, y in lca_dict.keys():
         # compute Q
         alt_y = [
-            n
-            for n in leaves
-            if network.nodes[n]["reconc"] == network.nodes[y]["reconc"]
+            n for n in leaves if network.nodes[n]["color"] == network.nodes[y]["color"]
         ]
         q = set()
         for element in alt_y:
