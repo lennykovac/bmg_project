@@ -27,7 +27,6 @@ def sample_graph_1():
     return G
 
 
-# test only works, when transform/addhybrid nodes works properly!!
 def test_sicorinhub():
     # generate 10 random gene networks
     species = 10
