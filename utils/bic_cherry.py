@@ -56,7 +56,8 @@ def bic_cherry_extension(bmg):
             n
             for n, color in bmg.nodes(data="color")
             if n != y and color == bmg.nodes[y]["color"]
-        ][0]
+        ][0]  # inconsistent results depending on z...
+
         network.add_node(f"q:{x}|{z}", color=None)
         if f"p:{y}|{x}" in set(
             network.nodes()

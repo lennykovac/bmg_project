@@ -28,7 +28,7 @@ def sample_graph_1():
     return G
 
 
-def test_sicorinhub():
+def test_bmg_properties():
     # generate 10 random gene networks
     species = 10
     species_tree_age = 1
@@ -49,6 +49,13 @@ def test_sicorinhub():
         # check sicor-in-hub property
         assert check_sicorinhub(bmg)
         assert check_sicorinhub(wbmg)
+        # check proper coloring (edges connecting different colors)
+        nodes_bmg = bmg.nodes(data=True)
+        for u, v in bmg.edges():
+            assert nodes_bmg[u]["color"] != nodes_bmg[v]["color"]
+        nodes_wbmg = wbmg.nodes(data=True)
+        for u, v in wbmg.edges():
+            assert nodes_wbmg[u]["color"] != nodes_wbmg[v]["color"]
 
 
 def test_bmg_structure(sample_graph_1):

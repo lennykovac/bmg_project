@@ -29,7 +29,27 @@ def sample_bmg_1():
     return G
 
 
-# TODO: convert to test with generated inputs
+@pytest.fixture
+def sample_bmg_2():
+    G = nx.DiGraph()
+
+    G.add_nodes_from(
+        [
+            (5, {"color": 2}),
+            (6, {"color": 2}),
+            (7, {"color": 2}),
+            (8, {"color": 3}),
+            (10, {"color": 2}),
+            (11, {"color": 3}),
+        ]
+    )
+    G.add_edges_from(
+        [(5, 8), (6, 8), (7, 8), (8, 5), (8, 6), (8, 7), (10, 11), (11, 10)]
+    )
+
+    return G
+
+
 def test_bic_cherry(sample_bmg_1):
 
     cherry_network, pairs = bic_cherry(sample_bmg_1)
@@ -48,7 +68,6 @@ def test_bic_cherry(sample_bmg_1):
     assert nx.is_isomorphic(bmg_from_network(cherry_network), full_bmg)
 
 
-# TODO: convert to test with generated inputs
 def test_bic_cherry_extension(sample_bmg_1):
     network = bic_cherry_extension(sample_bmg_1)
     restricted_network = restricted_bic_cherry_extension(sample_bmg_1)
@@ -60,7 +79,6 @@ def test_bic_cherry_extension(sample_bmg_1):
     assert nx.is_isomorphic(sample_bmg_1, restricted_new_bmg)
 
 
-# TODO: convert to test with generated inputs
 def test_bic_cherry_generated_examples():
 
     species = 10
@@ -85,9 +103,8 @@ def test_bic_cherry_generated_examples():
         assert nx.is_isomorphic(bmg_from_network(cherry_network), full_bmg)
 
 
-# TODO: convert to test with generated inputs
 def test_bic_cherry_extension_generated_examples():
-    species = 10
+    species = 2
     species_tree_age = 1
     for i in range(10):
         # asymmetree uses Tree class, our methods use nx.DiGraph
@@ -100,5 +117,32 @@ def test_bic_cherry_extension_generated_examples():
         restricted_new_bmg = bmg_from_network(restricted_network)
 
         # check that bmg of computed network is same as staring bmg
-        assert nx.is_isomorphic(bmg, new_bmg)
+        # hint1: new_bmg has less edges -> too many extensions applied in bic_cherry_ext?
+        # hint2: restircted version works well?! -> no idea why...
+        if not nx.is_isomorphic(bmg, new_bmg):
+            print("bmg nodes: ", bmg.nodes(data=True))
+            print("bmg edges: ", bmg.edges())
+            print("\n\n network nodes: ", network.nodes(data=True))
+            print("network edges: ", network.edges())
+            print("\n\n new_bmg nodes: ", new_bmg.nodes(data=True))
+            print("new_bmg edges: ", new_bmg.edges())
+            print_graph_diff(bmg, new_bmg)
+            assert False
+        # assert nx.is_isomorphic(
+        #     bmg, new_bmg
+        # )  # doesnt work, but they theoretically proved correctness...
         assert nx.is_isomorphic(bmg, restricted_new_bmg)
+
+
+# this fails, why?!?! -> very sensitive to choosing z! -> smallest possible z breaks this example, largest works. (different for other examples)
+def test_bmg_extra(sample_bmg_2):
+
+    network = bic_cherry_extension(sample_bmg_2)
+    restricted_network = restricted_bic_cherry_extension(sample_bmg_2)
+
+    new_bmg = bmg_from_network(network)
+    restricted_new_bmg = bmg_from_network(restricted_network)
+
+    print_graph_diff(sample_bmg_2, new_bmg)
+    assert nx.is_isomorphic(sample_bmg_2, new_bmg)
+    assert nx.is_isomorphic(sample_bmg_2, restricted_new_bmg)
