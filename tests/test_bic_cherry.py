@@ -7,7 +7,11 @@ from utils.graph_utils import (
     print_graph_diff,
 )
 from utils.tree_utils import create_gene_tree
-from utils.bic_cherry import bic_cherry_extension, bic_cherry
+from utils.bic_cherry import (
+    bic_cherry_extension,
+    bic_cherry,
+    restricted_bic_cherry_extension,
+)
 import pytest
 
 
@@ -41,15 +45,60 @@ def test_bic_cherry(sample_bmg_1):
         edge for (u, v) in pairs for edge in [(u, v), (v, u)]
     )  # add both directions for all mismatch colored nodes
 
-    print(pairs)
-    print_graph_diff(bmg_from_network(cherry_network), full_bmg)
     assert nx.is_isomorphic(bmg_from_network(cherry_network), full_bmg)
 
 
 # TODO: convert to test with generated inputs
 def test_bic_cherry_extension(sample_bmg_1):
     network = bic_cherry_extension(sample_bmg_1)
+    restricted_network = restricted_bic_cherry_extension(sample_bmg_1)
 
     new_bmg = bmg_from_network(network)
+    restricted_new_bmg = bmg_from_network(restricted_network)
 
     assert nx.is_isomorphic(sample_bmg_1, new_bmg)
+    assert nx.is_isomorphic(sample_bmg_1, restricted_new_bmg)
+
+
+# TODO: convert to test with generated inputs
+def test_bic_cherry_generated_examples():
+
+    species = 10
+    species_tree_age = 1
+    for i in range(10):
+        # asymmetree uses Tree class, our methods use nx.DiGraph
+        tree = create_gene_tree(species, species_tree_age).gene_tree
+        bmg = bmg_from_network(tree)
+        cherry_network, pairs = bic_cherry(bmg)
+
+        # check leaves are same as in bmg
+        assert set(bmg.nodes()) == set(leaves_from_network(cherry_network))
+        # check bmg from cherry_network is fully connected bmg
+        full_bmg = (
+            nx.DiGraph()
+        )  # full bmg wrong! Can only have edges between differently colored nodes!!
+        full_bmg.add_nodes_from(bmg.nodes(data=True))
+        full_bmg.add_edges_from(
+            edge for (u, v) in pairs for edge in [(u, v), (v, u)]
+        )  # add both directions for all mismatch colored nodes
+
+        assert nx.is_isomorphic(bmg_from_network(cherry_network), full_bmg)
+
+
+# TODO: convert to test with generated inputs
+def test_bic_cherry_extension_generated_examples():
+    species = 10
+    species_tree_age = 1
+    for i in range(10):
+        # asymmetree uses Tree class, our methods use nx.DiGraph
+        tree = create_gene_tree(species, species_tree_age).gene_tree
+        bmg = bmg_from_network(tree)
+        network = bic_cherry_extension(bmg)
+        restricted_network = restricted_bic_cherry_extension(bmg)
+
+        new_bmg = bmg_from_network(network)
+        restricted_new_bmg = bmg_from_network(restricted_network)
+
+        # check that bmg of computed network is same as staring bmg
+        assert nx.is_isomorphic(bmg, new_bmg)
+        assert nx.is_isomorphic(bmg, restricted_new_bmg)

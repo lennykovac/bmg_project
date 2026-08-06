@@ -21,6 +21,7 @@ class GeneSpeciesTrees(NamedTuple):
 
     gene_tree: nx.DiGraph
     species_tree: nx.DiGraph
+    original_gene_tree: Tree  # needed for testing with Asymmetree methods
 
 
 def _to_clean_digraph(tree: Tree) -> nx.DiGraph:
@@ -47,6 +48,11 @@ def _to_clean_digraph(tree: Tree) -> nx.DiGraph:
                 # looks hacky but converts no.float to python float data-type
                 attrs[key] = value.item()
 
+    # rename all "reconc" to "color" for now
+    for node in di_graph.nodes():
+        if "reconc" in di_graph.nodes[node]:
+            di_graph.nodes[node]["color"] = di_graph.nodes[node].pop("reconc")
+
     return di_graph
 
 
@@ -72,6 +78,7 @@ def create_gene_tree(species: int, spt_age: float = 1.0) -> GeneSpeciesTrees:
     return GeneSpeciesTrees(
         gene_tree=_to_clean_digraph(gene_tree),
         species_tree=_to_clean_digraph(species_tree),
+        original_gene_tree=gene_tree,
     )
 
 

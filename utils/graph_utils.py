@@ -103,10 +103,6 @@ def transform(graph: nx.DiGraph, no_of_hybrid_nodes: int) -> nx.DiGraph:
     Returns:
     A nx.DiGraph object.
     """
-    # rename "reconc" to "color"
-    for node in graph.nodes:
-        if "reconc" in graph.nodes[node]:
-            graph.nodes[node]["color"] = graph.nodes[node].pop("reconc")
 
     transformer_graph = graph
     # get all edges

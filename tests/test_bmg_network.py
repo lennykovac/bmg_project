@@ -7,6 +7,7 @@ from utils.graph_utils import (
 )
 import pytest
 from utils.tree_utils import create_gene_tree
+from asymmetree.analysis import bmg_from_tree
 
 
 @pytest.fixture
@@ -50,9 +51,6 @@ def test_sicorinhub():
         assert check_sicorinhub(wbmg)
 
 
-# TODO: check that for trees as input, bmg and wbmg output the same bmg AND the same as the Asymmetree implementation! Are all BMGs color sink free? if so, test! csf implies sicor_in_hub!
-
-
 def test_bmg_structure(sample_graph_1):
 
     bmg = bmg_from_network(sample_graph_1)
@@ -75,3 +73,19 @@ def test_wbmg_structure(sample_graph_1):
     actual_edges = list(bmg.edges())
     expected_edges = [(4, 5), (5, 4), (5, 6), (6, 5)]
     assert actual_edges == expected_edges
+
+
+# for trees, bmg=wbmg and bmg_from_tree of Asymmetree should also return the same result
+def test_bmg_wbmg_tree():
+    species = 10
+    species_tree_age = 1
+    for i in range(10):
+        # asymmetree uses Tree class, our methods use nx.DiGraph
+        tree_class = create_gene_tree(species, species_tree_age)
+        gene_tree = tree_class.gene_tree
+        tree = tree_class.original_gene_tree
+        bmg = bmg_from_network(gene_tree)
+        wbmg = wbmg_from_network(gene_tree)
+
+        assert nx.is_isomorphic(bmg_from_tree(tree), bmg)
+        assert nx.is_isomorphic(bmg, wbmg)
