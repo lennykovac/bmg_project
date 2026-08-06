@@ -50,6 +50,9 @@ def test_sicorinhub():
         assert check_sicorinhub(wbmg)
 
 
+# TODO: check that for trees as input, bmg and wbmg output the same bmg AND the same as the Asymmetree implementation! Are all BMGs color sink free? if so, test! csf implies sicor_in_hub!
+
+
 def test_bmg_structure(sample_graph_1):
 
     bmg = bmg_from_network(sample_graph_1)

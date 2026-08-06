@@ -27,6 +27,19 @@ def show_graph(di_graph: nx.DiGraph):
     nt.show("nx.html", notebook=False)
 
 
+def print_graph_diff(g1, g2):
+    """
+    For debugging: prints edges and node differences between two graphs
+    """
+    print("=== Node differences ===")
+    print("Only in g1:", set(g1.nodes) - set(g2.nodes))
+    print("Only in g2:", set(g2.nodes) - set(g1.nodes))
+
+    print("\n=== Edge differences ===")
+    print("Only in g1:", set(g1.edges) - set(g2.edges))
+    print("Only in g2:", set(g2.edges) - set(g1.edges))
+
+
 def insert_node_on_edge(node_for_adding: Any, edge: Tuple[Any, Any], G: nx.DiGraph):
     """
     Inserts a node onto an edge and removes the old redundant edge

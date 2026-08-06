@@ -33,10 +33,10 @@ def bic_cherry(bmg: nx.DiGraph):
     # build root and basic parent nodes and basic edges
     network.add_node("R", color=None)  # new root
     for x, y in pairs:
-        network.add_node(f"p{x}{y}", color=None)
-        network.add_edge("R", f"p{x}{y}")
-        network.add_edge(f"p{x}{y}", x)
-        network.add_edge(f"p{x}{y}", y)
+        network.add_node(f"p:{x}|{y}", color=None)
+        network.add_edge("R", f"p:{x}|{y}")
+        network.add_edge(f"p:{x}|{y}", x)
+        network.add_edge(f"p:{x}|{y}", y)
 
     return network, pairs
 
@@ -46,8 +46,10 @@ def bic_cherry_extension(bmg):
     network, pairs = bic_cherry(bmg)
     bmg_edges = set(bmg.edges())
 
-    # pairs to do extensions for
-    extend_pairs = [(x, y) for (x, y) in pairs if (x, y) not in bmg_edges]
+    # pairs to do extensions for (both directions!)
+    extend_pairs = [
+        edge for (u, v) in pairs for edge in [(u, v), (v, u)] if edge not in bmg_edges
+    ]
 
     for x, y in extend_pairs:
         z = [
@@ -55,10 +57,17 @@ def bic_cherry_extension(bmg):
             for n, color in bmg.nodes(data="color")
             if n != y and color == bmg.nodes[y]["color"]
         ][0]
-        network.add_node(f"q{x}{z}", color=None)
-        network.add_edge(f"p{x}{y}", f"q{x}{z}")
-        network.add_edge(f"q{x}{z}", x)
-        network.add_edge(f"q{x}{z}", z)
+        network.add_node(f"q:{x}|{z}", color=None)
+        if f"p:{y}|{x}" in set(
+            network.nodes()
+        ):  # would create redundant pxy node if not checked!
+            network.add_edge(f"p:{y}|{x}", f"q:{x}|{z}")
+        else:
+            network.add_edge(f"p:{x}|{y}", f"q:{x}|{z}")
+        network.add_edge(f"q:{x}|{z}", x)
+        network.add_edge(f"q:{x}|{z}", z)
+
+    print(network.nodes())
 
     return network
 
