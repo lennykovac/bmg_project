@@ -14,7 +14,6 @@
 | Todo                                                            | Name    | Tested | Done  |
 | --------------------------------------------------------------- | ------- | ------ | ----- |
 | Hybrid-Node-Insertion (0)                                          | Lenny   | ❗ NO  | ❗ NO |
-| BIC Cherry Expansion - restricted to accepting edges (1b)                                           | OPEN    | ❗ NO  | ❗ NO |
 | Unit tests for algos (ongoing, 1c) | OPEN    | ❗ NO  | ❗ NO |
 | GraphOperations: "Pull-Up", "Pull-down", "Delete redundant nodes" (2c) | OPEN    | ❗ NO  | ❗ NO |
 | Test if 1b is explanation for wbm Graphs (1d == Obj. 1b?)                  | OPEN | ❗ NO  | ❗ NO |
@@ -28,7 +27,8 @@
 | Implement wbmg_from_network() | Leo |  YES?(1)  | ✅ |
 | Implement bmg_from_network() | Leo |  YES?(1)  | ✅ |
 | Test (bm = weak bm?) with python (Obj. 1a)                               | Leo    | Yes  | Yes |
-| BIC Cherry Expansion (1a)                                           | Leo    | Yes (basic)  | ❗ NO - need test on random examples |
+| BIC Cherry Expansion (1a)                                           | Leo    | Yes (basic cases work)  | ❗ NO-on random examples results are not consistently correct! (see the failing test) :/ |
+| BIC Cherry Expansion - restricted to accepting edges (1b)                                           | Leo | Yes  | Yes |
 
 ## Help
 
