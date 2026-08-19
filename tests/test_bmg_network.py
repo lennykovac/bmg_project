@@ -1,4 +1,5 @@
 import networkx as nx
+from utils.bic_cherry import bic_cherry
 from utils.graph_utils import (
     bmg_from_network,
     wbmg_from_network,
@@ -19,6 +20,24 @@ def sample_graph_1():
     G.add_node(1, label="1", color="0")
     G.add_node(2, label="2", color="0")
     G.add_node(3, label="3", color="0")
+    G.add_node(4, label="4", color="0")
+    G.add_node(5, label="5", color="1")
+    G.add_node(6, label="6", color="0")
+
+    G.add_edges_from([(0, 1), (0, 2), (1, 3), (2, 4), (1, 4), (3, 5), (3, 6), (2, 5)])
+
+    return G
+
+
+@pytest.fixture
+def sample_graph_2():
+    # here, bmg != wbmg
+    G = nx.DiGraph()
+
+    G.add_node(0, label="0", color="0")
+    G.add_node(1, label="1", color="1")
+    G.add_node(2, label="2", color="0")
+    G.add_node(3, label="3", color="1")
     G.add_node(4, label="4", color="0")
     G.add_node(5, label="5", color="1")
     G.add_node(6, label="6", color="0")
@@ -96,3 +115,34 @@ def test_bmg_wbmg_tree():
 
         assert nx.is_isomorphic(bmg_from_tree(tree), bmg)
         assert nx.is_isomorphic(bmg, wbmg)
+
+
+# TODO: test if bmg from cherry network is fully connected bmg
+def test_bmg_from_cherry():
+    species = 2
+    species_tree_age = 1
+    for i in range(2):
+        tree = create_gene_tree(species, species_tree_age).gene_tree
+
+        network = transform(tree, 2)
+
+        cherry, pairs = bic_cherry(network)
+
+        resulting_bmg = bmg_from_network(cherry)
+
+        all_pairs = [edge for (u, v) in pairs for edge in [(u, v), (v, u)]]
+
+        assert set(all_pairs) == set(resulting_bmg.edges())
+
+
+def test_bmg_from_known_cherry(sample_graph_2):
+
+    network = sample_graph_2
+
+    cherry, pairs = bic_cherry(network)
+
+    resulting_bmg = bmg_from_network(cherry)
+
+    all_pairs = [edge for (u, v) in pairs for edge in [(u, v), (v, u)]]
+
+    assert set(all_pairs) == set(resulting_bmg.edges())

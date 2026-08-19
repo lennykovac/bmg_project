@@ -1,5 +1,9 @@
 import networkx as nx
-from utils.graph_utils import transform, wbmg_from_network
+from utils.graph_utils import (
+    transform,
+    wbmg_from_network,
+    print_graph_diff,
+)
 from utils.tree_utils import create_gene_tree
 from utils.bic_cherry import restricted_bic_cherry_extension
 
@@ -18,6 +22,7 @@ def generated_examples_test():
             print("success")
         else:
             print("fail")
+            print_graph_diff(wbmg, wbmg2)
 
         # if not nx.is_isomorphic(bmg, new_bmg):
         #     print("bmg nodes: ", bmg.nodes(data=True))

@@ -52,6 +52,8 @@ def insert_node_on_edge(node_for_adding: Any, edge: Tuple[Any, Any], G: nx.DiGra
     """
     parent_node = edge[0]
     child_node = edge[1]
+    # add new node (to set color to none do this explicitly!)
+    G.add_node(node_for_adding, color=None)
     # add edge from parent_node to new_node
     G.add_edge(parent_node, node_for_adding)
     # add edge from new_node to child_node
@@ -206,6 +208,10 @@ def bmg_from_network(
         bmg.add_node(v, color=network.nodes[v]["color"])
 
     lca_dict = lca_dict_from_network(network, reach, leaves)
+
+    # extend lca_dict with iverse key pairs
+    for x, y in lca_dict.keys():
+        lca_dict[(y, x)] = lca_dict[(x, y)]
 
     # check bm property for each pair
     delete_keys = set()

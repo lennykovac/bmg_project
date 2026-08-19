@@ -58,6 +58,7 @@ def bic_cherry_extension(bmg):
             if n != y and color == bmg.nodes[y]["color"]
         ][0]  # inconsistent results depending on z...
 
+        # asymmetree uses Tree class, our methods use nx.DiGraph
         network.add_node(f"q:{x}|{z}", color=None)
         if f"p:{y}|{x}" in set(
             network.nodes()
