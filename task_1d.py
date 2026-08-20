@@ -24,16 +24,6 @@ def generated_examples_test():
             print("fail")
             print_graph_diff(wbmg, wbmg2)
 
-        # if not nx.is_isomorphic(bmg, new_bmg):
-        #     print("bmg nodes: ", bmg.nodes(data=True))
-        #     print("bmg edges: ", bmg.edges())
-        #     print("\n\n network nodes: ", network.nodes(data=True))
-        #     print("network edges: ", network.edges())
-        #     print("\n\n new_bmg nodes: ", new_bmg.nodes(data=True))
-        #     print("new_bmg edges: ", new_bmg.edges())
-        #     print_graph_diff(bmg, new_bmg)
-        #     assert False
-
 
 # some fails, some successes...
 generated_examples_test()

@@ -38,15 +38,27 @@ def bic_cherry(bmg: nx.DiGraph):
         network.add_edge(f"p:{x}|{y}", x)
         network.add_edge(f"p:{x}|{y}", y)
 
+        network.add_node(f"p:{y}|{x}", color=None)
+        network.add_edge("R", f"p:{y}|{x}")
+        network.add_edge(f"p:{y}|{x}", x)
+        network.add_edge(f"p:{y}|{x}", y)
     return network, pairs
 
 
-# vanilla BIC-cherry+extension implementation
 def bic_cherry_extension(bmg):
+    """
+    Construct explaining network from BMG using the BIC-cherry + Expansion Algo from the paper.
+
+    Parameters:
+    bmg: valid bmg graph, no self loops, sicor-in-hub property
+
+    Returns:
+    network: an explaining network for input BMG
+    """
     network, pairs = bic_cherry(bmg)
     bmg_edges = set(bmg.edges())
 
-    # pairs to do extensions for (both directions!)
+    # pairs to do extensions for (direction sensitive)
     extend_pairs = [
         edge for (u, v) in pairs for edge in [(u, v), (v, u)] if edge not in bmg_edges
     ]
@@ -56,26 +68,27 @@ def bic_cherry_extension(bmg):
             n
             for n, color in bmg.nodes(data="color")
             if n != y and color == bmg.nodes[y]["color"]
-        ][0]  # inconsistent results depending on z...
+        ][0]
 
-        # asymmetree uses Tree class, our methods use nx.DiGraph
         network.add_node(f"q:{x}|{z}", color=None)
-        if f"p:{y}|{x}" in set(
-            network.nodes()
-        ):  # would create redundant pxy node if not checked!
-            network.add_edge(f"p:{y}|{x}", f"q:{x}|{z}")
-        else:
-            network.add_edge(f"p:{x}|{y}", f"q:{x}|{z}")
+        network.add_edge(f"p:{x}|{y}", f"q:{x}|{z}")
         network.add_edge(f"q:{x}|{z}", x)
         network.add_edge(f"q:{x}|{z}", z)
 
     return network
 
 
-# BIC-cherry+etension restricted to accepting edges
-
-
 def restricted_bic_cherry_extension(bmg):
+    """
+    Construct explaining network from BMG using the BIC-cherry + Expansion Algo from the paper where expansion partner nodes (z)
+    must be chosen such that (x, z) is an edge in the BMG
+
+    Parameters:
+    bmg: valid bmg graph, no self loops, sicor-in-hub property
+
+    Returns:
+    network: an explaining network for input BMG
+    """
     network, pairs = bic_cherry(bmg)
     bmg_edges = set(bmg.edges())
 
@@ -91,16 +104,8 @@ def restricted_bic_cherry_extension(bmg):
             if n != y and color == bmg.nodes[y]["color"] and (x, n) in set(bmg.edges())
         ][0]
         network.add_node(f"q:{x}|{z}", color=None)
-        if f"p:{y}|{x}" in set(
-            network.nodes()
-        ):  # would create redundant pxy node if not checked!
-            network.add_edge(f"p:{y}|{x}", f"q:{x}|{z}")
-        else:
-            network.add_edge(f"p:{x}|{y}", f"q:{x}|{z}")
+        network.add_edge(f"p:{x}|{y}", f"q:{x}|{z}")
         network.add_edge(f"q:{x}|{z}", x)
         network.add_edge(f"q:{x}|{z}", z)
 
     return network
-
-
-# Graph Operations on resulting networks (delete redundant nodes, pullup/pulldown operations - or something else, be creative!) Must preserve the bmg/wbmg of the network!!

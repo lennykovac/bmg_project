@@ -216,7 +216,7 @@ def bmg_from_network(
         alt_y = [
             u for u in leaves if network.nodes[u]["color"] == network.nodes[y]["color"]
         ]
-        # iterate over lca(x, y') --> ALREADY IN lca_dict!!!!
+        # iterate over lca(x, y')
         for ay in alt_y:
             lca_alt_y = lca_dict[(x, ay)]
             for u in lca_alt_y:
