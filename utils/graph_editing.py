@@ -1,42 +1,7 @@
-"""Network editing primitives (project task 2.2(c)): "pulling up" /
-"pulling down" edges, and removing redundant vertices, applied to an
-explaining network N (e.g. the output of bic_cherry.bic_cherry_extension)
-in order to make it more tree-like while it keeps explaining the same
-(weak) best match graph.
-
-None of the edits here check "does the network still explain the same
-(weak) best match graph?" by themselves -- that comparison is task 2.2(b)/
-(d)'s job and isn't implemented yet (it needs an LCA-on-networks routine).
-`try_edit` is the integration point: give it a `still_valid(before, after)`
-predicate once that checker exists, and every edit below can be applied
-speculatively and rolled back automatically.
-
-What each edit means, in terms of the plain digraph operations below:
-
-- pull_up(u, v, target):   move the edge (u, v) so it originates from an
-  ANCESTOR of u instead ("target" is closer to the root). Repeated for
-  every one of v's parents against the same target, this is exactly how a
-  vertex with many parents (e.g. a leaf that's a child of every
-  cherry-parent involving it) collapses down to a single parent.
-
-- pull_down(u, v, target): the mirror move -- reattach (u, v) so it
-  originates from a DESCENDANT of u instead ("target" is closer to the
-  leaves), recovering resolution that a pull_up moved too far up.
-
-- remove_redundant_vertex(v) / remove_useless_vertex(v): once pulls have
-  been applied, some internal vertices end up either an exact duplicate of
-  another vertex (same parents, same children) or "useless" (exactly one
-  parent, one child, so no branching information) -- both are structurally
-  removable without changing what's reachable from where.
-"""
 from collections import defaultdict
 
 import networkx as nx
 
-
-# ---------------------------------------------------------------------------
-# pulling edges up / down
-# ---------------------------------------------------------------------------
 
 def _reattach(network: nx.DiGraph, old_source, new_source, v) -> nx.DiGraph:
     """Move the edge (old_source, v) so it becomes (new_source, v),
@@ -119,10 +84,6 @@ def pull_up_to_common_ancestor(network: nx.DiGraph, v, ancestor) -> nx.DiGraph:
     return network
 
 
-# ---------------------------------------------------------------------------
-# removing redundant vertices
-# ---------------------------------------------------------------------------
-
 def _is_leaf(network: nx.DiGraph, v) -> bool:
     return network.nodes[v].get("kind") == "leaf"
 
@@ -194,10 +155,6 @@ def remove_useless_vertex(network: nx.DiGraph, v) -> nx.DiGraph:
     network.add_edge(parent, child)
     return network
 
-
-# ---------------------------------------------------------------------------
-# speculative-apply-and-verify driver
-# ---------------------------------------------------------------------------
 
 def try_edit(network: nx.DiGraph, edit_fn, *args, still_valid=None, **kwargs):
     """Apply `edit_fn(candidate, *args, **kwargs)` to a *copy* of

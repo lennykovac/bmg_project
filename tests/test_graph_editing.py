@@ -1,4 +1,3 @@
-"""Unit tests for bic_cherry_edit.py."""
 import networkx as nx
 import pytest
 
@@ -53,11 +52,6 @@ def chain_network():
     g.add_edges_from([("R", "a"), ("a", "b"), ("b", "leaf"), ("R", "leaf2")])
     return g
 
-
-# ---------------------------------------------------------------------------
-# pull_up
-# ---------------------------------------------------------------------------
-
 class TestPullUp:
     def test_moves_edge_source_to_explicit_ancestor(self, diamond_network):
         pull_up(diamond_network, "p1", "x", target="R")
@@ -93,10 +87,6 @@ class TestPullUp:
             pull_up(diamond_network, "p2", "y", target="R")
 
 
-# ---------------------------------------------------------------------------
-# pull_down
-# ---------------------------------------------------------------------------
-
 class TestPullDown:
     def test_moves_edge_source_to_explicit_descendant(self, chain_network):
         pull_down(chain_network, "R", "leaf2", target="a")
@@ -130,10 +120,6 @@ class TestPullDown:
             pull_down(g, "a", "v", target="target")
 
 
-# ---------------------------------------------------------------------------
-# pull_up_to_common_ancestor
-# ---------------------------------------------------------------------------
-
 def test_pull_up_to_common_ancestor_collapses_all_parents(diamond_network):
     pull_up_to_common_ancestor(diamond_network, "x", "R")
 
@@ -147,10 +133,6 @@ def test_pull_up_to_common_ancestor_is_a_noop_for_a_single_parent(chain_network)
     pull_up_to_common_ancestor(chain_network, "leaf2", "R")
     assert set(chain_network.predecessors("leaf2")) == {"R"}
 
-
-# ---------------------------------------------------------------------------
-# twin / redundant vertex removal
-# ---------------------------------------------------------------------------
 
 @pytest.fixture
 def twin_network():
@@ -216,10 +198,6 @@ class TestRemoveUselessVertex:
         with pytest.raises(ValueError):
             remove_useless_vertex(chain_network, "leaf")
 
-
-# ---------------------------------------------------------------------------
-# try_edit
-# ---------------------------------------------------------------------------
 
 class TestTryEdit:
     def test_applies_and_returns_a_new_network_without_mutating_the_original(self, diamond_network):
