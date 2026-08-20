@@ -209,10 +209,6 @@ def bmg_from_network(
 
     lca_dict = lca_dict_from_network(network, reach, leaves)
 
-    # extend lca_dict with iverse key pairs
-    for x, y in lca_dict.keys():
-        lca_dict[(y, x)] = lca_dict[(x, y)]
-
     # check bm property for each pair
     delete_keys = set()
     for x, y in lca_dict.keys():

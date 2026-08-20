@@ -2,6 +2,8 @@ import networkx as nx
 from utils.bic_cherry import bic_cherry
 from utils.graph_utils import (
     bmg_from_network,
+    lca_dict_from_network,
+    leaves_from_network,
     wbmg_from_network,
     transform,
     check_sicorinhub,
@@ -117,7 +119,7 @@ def test_bmg_wbmg_tree():
         assert nx.is_isomorphic(bmg, wbmg)
 
 
-# TODO: test if bmg from cherry network is fully connected bmg
+# test if bmg from cherry network is actually a maximally connected bmg
 def test_bmg_from_cherry():
     species = 2
     species_tree_age = 1
@@ -135,9 +137,9 @@ def test_bmg_from_cherry():
         assert set(all_pairs) == set(resulting_bmg.edges())
 
 
-def test_bmg_from_known_cherry(sample_graph_2):
+def test_bmg_from_known_cherry(sample_graph_1):
 
-    network = sample_graph_2
+    network = sample_graph_1
 
     cherry, pairs = bic_cherry(network)
 
@@ -146,3 +148,20 @@ def test_bmg_from_known_cherry(sample_graph_2):
     all_pairs = [edge for (u, v) in pairs for edge in [(u, v), (v, u)]]
 
     assert set(all_pairs) == set(resulting_bmg.edges())
+
+
+# TODO: test if lca_dict function works correctly
+def test_lca_dict_from_network(sample_graph_1):
+
+    reach = {
+        n: nx.descendants(sample_graph_1, n) for n in sample_graph_1.nodes
+    }  # pre-compute reachability in network as dict[{v:descendants of v}]
+
+    leaves = leaves_from_network(sample_graph_1)
+
+    lcas = lca_dict_from_network(sample_graph_1, reach, leaves)
+
+    # returns both directions of lca tuples
+    correct_lcas = {(5, 4): {1, 2}, (4, 5): {1, 2}, (5, 6): {3}, (6, 5): {3}}
+
+    assert lcas == correct_lcas

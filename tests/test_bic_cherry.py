@@ -35,7 +35,6 @@ def sample_bmg_2():
 
     G.add_nodes_from(
         [
-            (5, {"color": 2}),
             (6, {"color": 2}),
             (7, {"color": 2}),
             (8, {"color": 3}),
@@ -43,9 +42,25 @@ def sample_bmg_2():
             (11, {"color": 3}),
         ]
     )
-    G.add_edges_from(
-        [(5, 8), (6, 8), (7, 8), (8, 5), (8, 6), (8, 7), (10, 11), (11, 10)]
+    G.add_edges_from([(6, 8), (7, 8), (8, 6), (8, 7), (10, 11), (11, 10)])
+
+    return G
+
+
+@pytest.fixture
+def sample_bmg_3():
+    G = nx.DiGraph()
+
+    G.add_nodes_from(
+        [
+            (6, {"color": 2}),
+            (7, {"color": 2}),
+            (8, {"color": 3}),
+            (10, {"color": 2}),
+            (11, {"color": 3}),
+        ]
     )
+    G.add_edges_from([(6, 8), (8, 6), (7, 8), (8, 7), (10, 11), (11, 10)])
 
     return G
 
@@ -156,4 +171,17 @@ def test_bmg_extra(sample_bmg_2):
 
     print_graph_diff(sample_bmg_2, new_bmg)
     assert nx.is_isomorphic(sample_bmg_2, new_bmg)
+    # assert nx.is_isomorphic(sample_bmg_2, restricted_new_bmg)
+
+
+def test_bmg_extra2(sample_bmg_3):
+
+    network = bic_cherry_extension(sample_bmg_3)
+    # restricted_network = restricted_bic_cherry_extension(sample_bmg_2)
+
+    new_bmg = bmg_from_network(network)
+    # restricted_new_bmg = bmg_from_network(restricted_network)
+
+    print_graph_diff(sample_bmg_3, new_bmg)
+    assert nx.is_isomorphic(sample_bmg_3, new_bmg)
     # assert nx.is_isomorphic(sample_bmg_2, restricted_new_bmg)
