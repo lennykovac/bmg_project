@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Operações de edição — bic_cherry_edit.py</title>
+<style>
+  :root {
+    --surface-1: #fcfcfb;
+    --page: #f9f9f7;
+    --ink-1: #0b0b0b;
+    --ink-2: #52514e;
+    --ink-muted: #898781;
+    --hairline: #e1e0d9;
+    --border: rgba(11,11,11,0.10);
+
+    --root: #2a78d6;
+    --internal: #1baf7a;
+    --leaf-fill: #eae9e4;
+    --leaf-border: #898781;
+
+    --edge-normal: #c3c2b7;
+    --edge-removed: #d03b3b;
+    --edge-new: #0ca30c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 0;
+    background: var(--page);
+    color: var(--ink-1);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .wrap {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+  h1 {
+    font-size: 26px;
+    margin: 0 0 6px;
+  }
+  .subtitle {
+    color: var(--ink-2);
+    font-size: 15px;
+    margin: 0 0 28px;
+    max-width: 640px;
+    line-height: 1.5;
+  }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 36px;
+    font-size: 13px;
+    color: var(--ink-2);
+  }
+  .legend-item { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+  .swatch { width: 13px; height: 13px; border-radius: 50%; flex: none; }
+  .swatch.line { width: 22px; height: 0; border-radius: 0; border-top: 2.5px solid; }
+  .swatch.dashed { border-top-style: dashed; }
+
+  section.op {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px 28px 28px;
+    margin-bottom: 28px;
+  }
+  .op-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 4px;
+  }
+  .op-desc {
+    color: var(--ink-2);
+    font-size: 14.5px;
+    line-height: 1.55;
+    margin: 0 0 18px;
+    max-width: 700px;
+  }
+  code {
+    background: #f0efec;
+    border: 1px solid var(--hairline);
+    border-radius: 5px;
+    padding: 1px 6px;
+    font-size: 13px;
+  }
+  .panels {
+    display: grid;
+    grid-template-columns: 1fr 40px 1fr;
+    align-items: center;
+    gap: 4px;
+  }
+  @media (max-width: 640px) {
+    .panels { grid-template-columns: 1fr; }
+    .panels .sep { display: none; }
+  }
+  .panel { text-align: center; }
+  .panel-label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    margin-bottom: 6px;
+  }
+  .panel svg { max-width: 100%; height: auto; }
+  .sep {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink-muted);
+    font-size: 20px;
+  }
+  .call {
+    margin-top: 16px;
+    text-align: center;
+  }
+  .call code {
+    font-size: 13px;
+    padding: 5px 12px;
+  }
+  footer {
+    color: var(--ink-muted);
+    font-size: 12.5px;
+    margin-top: 8px;
+    line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Edições da rede BIC-cherry</h1>
+  <p class="subtitle">
+    Cada bloco mostra o efeito de uma função de <code>bic_cherry_edit.py</code>
+    sobre uma rede pequena: à esquerda o estado antes da chamada, à direita
+    depois. As posições dos vértices não mudam entre os dois painéis — só as
+    arestas (e, em dois casos, um vértice) mudam, pra deixar claro exatamente
+    o que a edição fez.
+  </p>
+
+  <div class="legend">
+    <div class="legend-item"><span class="swatch" style="background:var(--root)"></span>raiz</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--internal)"></span>nó interno</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--leaf-fill);border:2px solid var(--leaf-border)"></span>folha</div>
+    <div class="legend-item"><span class="swatch line" style="border-color:var(--edge-normal)"></span>aresta existente</div>
+    <div class="legend-item"><span class="swatch line dashed" style="border-color:var(--edge-removed)"></span>aresta que será/foi removida</div>
+    <div class="legend-item"><span class="swatch line" style="border-color:var(--edge-new)"></span>aresta nova</div>
+  </div>
+
+  <!-- shared marker defs, referenced by every diagram below -->
+  <svg width="0" height="0" style="position:absolute">
+    <defs>
+      <marker id="arrow-normal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#c3c2b7"/>
+      </marker>
+      <marker id="arrow-removed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#d03b3b"/>
+      </marker>
+      <marker id="arrow-new" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#0ca30c"/>
+      </marker>
+    </defs>
+  </svg>
+
+  <!-- ============================================================ -->
+  <!-- 1. pull_up -->
+  <!-- ============================================================ -->
+  <section class="op">
+    <p class="op-title">1. <code>pull_up</code> — reanexar uma aresta mais perto da raiz</p>
+    <p class="op-desc">
+      A folha <strong>x</strong> tem hoje dois pais, p1 e p2. <code>pull_up</code>
+      pega a aresta (p1, x) e a reanexa numa origem que seja ancestral de p1 —
+      aqui, a própria raiz R — em vez de deixá-la vindo de p1.
+      x continua alcançável, só que agora direto pela raiz.
+    </p>
+    <div class="panels">
+      <div class="panel">
+        <div class="panel-label">Antes</div>
+        <svg viewBox="0 0 340 230" width="340" height="230">
+          <!-- edges -->
+          <line x1="170" y1="42" x2="98" y2="98" stroke="#c3c2b7" stroke-width="2.5" marker-end="url(#arrow-normal)"/>
+          <line x1="170" y1="42" x2="242" y2="98" stroke="#c3c2b7" stroke-width="2.5" marker-end="url(#arrow-normal)"/>
+          <line x1="90" y1="120" x2="55" y2="178" stroke="#c3c2b7" stroke-width="2.5" marker-end="url(#arrow-normal)"/>
+          <line x1="97" y1="122" x2="163" y2="178" stroke="#d03b3b" stroke-width="2.5" stroke-dasharray="6,5" marker-end="url(#arrow-removed)"/>
+          <line x1="177" y1="178" x2="243" y2="122" stroke="#c3c2b7" stroke-width="2.5" marker-end="url(#arrow-normal)"/>
+          <line x1="250" y1="120" x2="285" y2="178" stroke="#c3c2b7" stroke-width="2.5" marker-end="url(#arrow-normal)"/>
+          <!-- nodes -->
+          <circle cx="170" cy="30" r="22" fill="#2a78d6"/>
+          <text x="170" y="35" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">R</text>
+          <circle cx="90" cy="110" r="22" fill="#1baf7a"/>
+          <text x="90" y="115" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">p1</text>
+          <circle cx="250" cy="110" r="22" fill="#1baf7a"/>
+          <text x="250" y="115" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">p2</text>
+          <circle cx="50" cy="192" r="20" fill="#eae9e4" stroke="#898781" stroke-width="2"/>
+          <text x="50" y="197" text-anchor="middle" fill="#0b0b0b" font-size="13" font-weight="700">y</text>
+          <circle cx="170" cy="192" r="20" fill="#eae9e4" stroke="#898781" stroke-width="2"/>
+          <text x="170" y="197" text-anchor="middle" fill="#0b0b0b" font-size="13" font-weight="700">x</text>
+          <circle cx="290" cy="192" r="20" fill="#eae9e4" stroke="#898781" stroke-width="2"/>
+          <text x="290" y="197" text-anchor="middle" fill="#0b0b0b" font-size="13" font-weight="700">z</text>
+        </svg>
+      </div>
+      <div class="sep">→</div>
+      <div class="panel">
+        <div class="panel-label">Depois</div>
+        <svg viewBox="0 0 340 230" width="340" height="230">
+          <line x1="170" y1="42" x2="98" y2="98" stroke="#c3c2b7" stroke-width="2.5" marker-end="url(#arrow-normal)"/>
+          <line x1="170" y1="42" x2="242" y2="98" stroke="#c3c2b7" stroke-width="2.5" marker-end="url(#arrow-normal)"/>
+          <line x1="90" y1="120" x2="55" y2="178" stroke="#c3c2b7" stroke-width="2.5" marker-end="url(#arrow-normal)"/>
+          <line x1="177" y1="178" x2="243" y2="122" stroke="#c3c2b7" stroke-width="2.5" marker-end="url(#arrow-normal)"/>
+          <line x1="250" y1="120" x2="285" y2="178" stroke="#c3c2b7" stroke-width="2.5" marker-end="url(#arrow-normal)"/>
+          <line x1="177" y1="47" x2="169" y2="170" stroke="#0ca30c" stroke-width="3" marker-end="url(#arrow-new)"/>
+          <circle cx="170" cy="30" r="22" fill="#2a78d6"/>
+          <text x="170" y="35" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">R</text>
+          <circle cx="90" cy="110" r="22" fill="#1baf7a"/>
+          <text x="90" y="115" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">p1</text>
+          <circle cx="250" cy="110" r="22" fill="#1baf7a"/>
+          <text x="250" y="115" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">p2</text>
+          <circle cx="50" cy="192" r="20" fill="#eae9e4" stroke="#898781" stroke-width="2"/>
+          <text x="50" y="197" text-anchor="middle" fill="#0b0b0b" font-size="13" font-weight="700">y</text>
+          <circle cx="170" cy="192" r="20" fill="#eae9e4" stroke="#898781" stroke-width="2"/>
+          <text x="170" y="197" text-anchor="middle" fill="#0b0b0b" font-size="13" font-weight="700">x</text>
+          <circle cx="290" cy="192" r="20" fill="#eae9e4" stroke="#898781" stroke-width="2"/>
+          <text x="290" y="197" text-anchor="middle" fill="#0b0b0b" font-size="13" font-weight="700">z</text>
+        </svg>
+      </div>
+    </div>
+    <div class="call"><code>pull_up(rede, "p1", "x", target="R")</code></div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- 2. pull_down -->
+  <!-- ============================================================ -->
+  <section class="op">
+    <p class="op-title">2. <code>pull_down</code> — reanexar uma aresta mais perto das folhas</p>
+    <p class="op-desc">
+      O espelho de <code>pull_up</code>: <strong>leaf2</strong> é filho direto
+      da raiz R. <code>pull_down</code> reanexa essa aresta numa origem que
+      seja <em>descendente</em> de R — aqui, o vértice a — reconectando leaf2
+      mais especificamente, mais perto de onde ele "pertence".
+    </p>
+    <div class="panels">
+      <div class="panel">
+        <div class="panel-label">Antes</div>
+        <svg viewBox="0 0 340 300" width="340" height="300">
+          <line x1="150" y1="45" x2="105" y2="98" stroke="#c3c2b7" stroke-width="2.5" marker-end="url(#arrow-normal)"/>
+          <line x1="192" y1="42" x2="255" y2="98" stroke="#d03b3b" stroke-width="2.5" stroke-dasharray="6,5" marker-end="url(#arrow-removed)"/>
+          <line x1="100" y1="120" x2="100" y2="178" stroke="#c3c2b7" stroke-width="2.5" marker-end="url(#arrow-normal)"/>
+          <line x1="100" y1="200" x2="100" y2="258" stroke="#c3c2b7" stroke-width="2.5" marker-end="url(#arrow-normal)"/>
+          <circle cx="170" cy="30" r="22" fill="#2a78d6"/>
+          <text x="170" y="35" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">R</text>
+          <circle cx="100" cy="110" r="22" fill="#1baf7a"/>
+          <text x="100" y="115" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">a</text>
+          <circle cx="270" cy="110" r="20" fill="#eae9e4" stroke="#898781" stroke-width="2"/>
+          <text x="270" y="115" text-anchor="middle" fill="#0b0b0b" font-size="12" font-weight="700">leaf2</text>
+          <circle cx="100" cy="190" r="22" fill="#1baf7a"/>
+          <text x="100" y="195" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">b</text>
+          <circle cx="100" cy="270" r="20" fill="#eae9e4" stroke="#898781" stroke-width="2"/>
+          <text x="100" y="275" text-anchor="middle" fill="#0b0b0b" font-size="12" font-weight="700">leaf</text>
+        </svg>
+      </div>
+      <div class="sep">→</div>
+      <div class="panel">
+        <div class="panel-label">Depois</div>
+        <svg viewBox="0 0 340 300" width="340" height="300">
+          <line x1="150" y1="45" x2="105" y2="98" stroke="#c3c2b7" stroke-width="2.5" marker-end="url(#arrow-normal)"/>
+          <line x1="100" y1="120" x2="100" y2="178" stroke="#c3c2b7" stroke-width="2.5" marker-end="url(#arrow-normal)"/>
+          <line x1="100" y1="200" x2="100" y2="258" stroke="#c3c2b7" stroke-width="2.5" marker-end="url(#arrow-normal)"/>
+          <line x1="118" y1="105" x2="255" y2="115" stroke="#0ca30c" stroke-width="3" marker-end="url(#arrow-new)"/>
+          <circle cx="170" cy="30" r="22" fill="#2a78d6"/>
+          <text x="170" y="35" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">R</text>
+          <circle cx="100" cy="110" r="22" fill="#1baf7a"/>
+          <text x="100" y="115" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">a</text>
+          <circle cx="270" cy="110" r="20" fill="#eae9e4" stroke="#898781" stroke-width="2"/>
+          <text x="270" y="115" text-anchor="middle" fill="#0b0b0b" font-size="12" font-weight="700">leaf2</text>
+          <circle cx="100" cy="190" r="22" fill="#1baf7a"/>
+          <text x="100" y="195" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">b</text>
+          <circle cx="100" cy="270" r="20" fill="#eae9e4" stroke="#898781" stroke-width="2"/>
+          <text x="100" y="275" text-anchor="middle" fill="#0b0b0b" font-size="12" font-weight="700">leaf</text>
+        </svg>
+      </div>
+    </div>
+    <div class="call"><code>pull_down(rede, "R", "leaf2", target="a")</code></div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- 3. pull_up_to_common_ancestor -->
+  <!-- ============================================================ -->
+  <section class="op">
+    <p class="op-title">3. <code>pull_up_to_common_ancestor</code> — colapsar todos os pais de uma vez</p>
+    <p class="op-desc">
+      A aplicação prática de <code>pull_up</code>: em vez de puxar uma aresta
+      por vez, essa função pega <strong>todos</strong> os pais atuais de x
+      (aqui, p1 <em>e</em> p2) e os substitui por uma única aresta vinda de um
+      ancestral comum. É exatamente isso que reduz o grau de entrada de um
+      vértice — o que torna a rede não-árvore — de volta pra 1.
+    </p>
+    <div class="panels">
+      <div class="panel">
+        <div class="panel-label">Antes</div>
+        <svg viewBox="0 0 340 230" width="340" height="230">
+          <line x1="170" y1="42" x2="98" y2="98" stroke="#c3c2b7" stroke-width="2.5" marker-end="url(#arrow-normal)"/>
+          <line x1="170" y1="42" x2="242" y2="98" stroke="#c3c2b7" stroke-width="2.5" marker-end="url(#arrow-normal)"/>
+          <line x1="90" y1="120" x2="55" y2="178" stroke="#c3c2b7" stroke-width="2.5" marker-end="url(#arrow-normal)"/>
+          <line x1="97" y1="122" x2="163" y2="178" stroke="#d03b3b" stroke-width="2.5" stroke-dasharray="6,5" marker-end="url(#arrow-removed)"/>
+          <line x1="243" y1="122" x2="177" y2="178" stroke="#d03b3b" stroke-width="2.5" stroke-dasharray="6,5" marker-end="url(#arrow-removed)"/>
+          <line x1="250" y1="120" x2="285" y2="178" stroke="#c3c2b7" stroke-width="2.5" marker-end="url(#arrow-normal)"/>
+          <circle cx="170" cy="30" r="22" fill="#2a78d6"/>
+          <text x="170" y="35" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">R</text>
+          <circle cx="90" cy="110" r="22" fill="#1baf7a"/>
+          <text x="90" y="115" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">p1</text>
+          <circle cx="250" cy="110" r="22" fill="#1baf7a"/>
+          <text x="250" y="115" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">p2</text>
+          <circle cx="50" cy="192" r="20" fill="#eae9e4" stroke="#898781" stroke-width="2"/>
+          <text x="50" y="197" text-anchor="middle" fill="#0b0b0b" font-size="13" font-weight="700">y</text>
+          <circle cx="170" cy="192" r="20" fill="#eae9e4" stroke="#898781" stroke-width="2"/>
+          <text x="170" y="197" text-anchor="middle" fill="#0b0b0b" font-size="13" font-weight="700">x</text>
+          <circle cx="290" cy="192" r="20" fill="#eae9e4" stroke="#898781" stroke-width="2"/>
+          <text x="290" y="197" text-anchor="middle" fill="#0b0b0b" font-size="13" font-weight="700">z</text>
+        </svg>
+      </div>
+      <div class="sep">→</div>
+      <div class="panel">
+        <div class="panel-label">Depois</div>
+        <svg viewBox="0 0 340 230" width="340" height="230">
+          <line x1="170" y1="42" x2="98" y2="98" stroke="#c3c2b7" stroke-width="2.5" marker-end="url(#arrow-normal)"/>
+          <line x1="170" y1="42" x2="242" y2="98" stroke="#c3c2b7" stroke-width="2.5" marker-end="url(#arrow-normal)"/>
+          <line x1="90" y1="120" x2="55" y2="178" stroke="#c3c2b7" stroke-width="2.5" marker-end="url(#arrow-normal)"/>
+          <line x1="250" y1="120" x2="285" y2="178" stroke="#c3c2b7" stroke-width="2.5" marker-end="url(#arrow-normal)"/>
+          <line x1="177" y1="47" x2="169" y2="170" stroke="#0ca30c" stroke-width="3" marker-end="url(#arrow-new)"/>
+          <circle cx="170" cy="30" r="22" fill="#2a78d6"/>
+          <text x="170" y="35" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">R</text>
+          <circle cx="90" cy="110" r="22" fill="#1baf7a"/>
+          <text x="90" y="115" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">p1</text>
+          <circle cx="250" cy="110" r="22" fill="#1baf7a"/>
+          <text x="250" y="115" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">p2</text>
+          <circle cx="50" cy="192" r="20" fill="#eae9e4" stroke="#898781" stroke-width="2"/>
+          <text x="50" y="197" text-anchor="middle" fill="#0b0b0b" font-size="13" font-weight="700">y</text>
+          <circle cx="170" cy="192" r="20" fill="#eae9e4" stroke="#898781" stroke-width="2"/>
+          <text x="170" y="197" text-anchor="middle" fill="#0b0b0b" font-size="13" font-weight="700">x</text>
+          <circle cx="290" cy="192" r="20" fill="#eae9e4" stroke="#898781" stroke-width="2"/>
+          <text x="290" y="197" text-anchor="middle" fill="#0b0b0b" font-size="13" font-weight="700">z</text>
+        </svg>
+      </div>
+    </div>
+    <div class="call"><code>pull_up_to_common_ancestor(rede, "x", "R")</code></div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- 4. remove_redundant_vertex -->
+  <!-- ============================================================ -->
+  <section class="op">
+    <p class="op-title">4. <code>remove_redundant_vertex</code> — remover um vértice "gêmeo"</p>
+    <p class="op-desc">
+      p1 e p2 têm exatamente os mesmos pais (só R) e os mesmos filhos (x e y)
+      — são estruturalmente redundantes, representam a mesma coisa duas
+      vezes. p1 já fornece todo caminho que p2 fornecia, então p2 pode ser
+      removido sem religar nada.
+    </p>
+    <div class="panels">
+      <div class="panel">
+        <div class="panel-label">Antes</div>
+        <svg viewBox="0 0 340 230" width="340" height="230">
+          <line x1="155" y1="45" x2="120" y2="98" stroke="#c3c2b7" stroke-width="2.5" marker-end="url(#arrow-normal)"/>
+          <line x1="185" y1="42" x2="225" y2="98" stroke="#d03b3b" stroke-width="2.5" stroke-dasharray="6,5" marker-end="url(#arrow-removed)"/>
+          <line x1="115" y1="122" x2="115" y2="178" stroke="#c3c2b7" stroke-width="2.5" marker-end="url(#arrow-normal)"/>
+          <line x1="122" y1="120" x2="220" y2="178" stroke="#c3c2b7" stroke-width="2.5" marker-end="url(#arrow-normal)"/>
+          <line x1="225" y1="122" x2="127" y2="178" stroke="#d03b3b" stroke-width="2.5" stroke-dasharray="6,5" marker-end="url(#arrow-removed)"/>
+          <line x1="225" y1="122" x2="225" y2="178" stroke="#d03b3b" stroke-width="2.5" stroke-dasharray="6,5" marker-end="url(#arrow-removed)"/>
+          <circle cx="170" cy="30" r="22" fill="#2a78d6"/>
+          <text x="170" y="35" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">R</text>
+          <circle cx="110" cy="110" r="22" fill="#1baf7a"/>
+          <text x="110" y="115" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">p1</text>
+          <circle cx="230" cy="110" r="22" fill="#eae9e4" stroke="#d03b3b" stroke-width="2.5" stroke-dasharray="4,3"/>
+          <text x="230" y="115" text-anchor="middle" fill="#d03b3b" font-size="13" font-weight="700">p2</text>
+          <circle cx="115" cy="192" r="20" fill="#eae9e4" stroke="#898781" stroke-width="2"/>
+          <text x="115" y="197" text-anchor="middle" fill="#0b0b0b" font-size="13" font-weight="700">x</text>
+          <circle cx="230" cy="192" r="20" fill="#eae9e4" stroke="#898781" stroke-width="2"/>
+          <text x="230" y="197" text-anchor="middle" fill="#0b0b0b" font-size="13" font-weight="700">y</text>
+        </svg>
+      </div>
+      <div class="sep">→</div>
+      <div class="panel">
+        <div class="panel-label">Depois</div>
+        <svg viewBox="0 0 340 230" width="340" height="230">
+          <line x1="155" y1="45" x2="120" y2="98" stroke="#c3c2b7" stroke-width="2.5" marker-end="url(#arrow-normal)"/>
+          <line x1="115" y1="122" x2="115" y2="178" stroke="#c3c2b7" stroke-width="2.5" marker-end="url(#arrow-normal)"/>
+          <line x1="122" y1="120" x2="220" y2="178" stroke="#c3c2b7" stroke-width="2.5" marker-end="url(#arrow-normal)"/>
+          <circle cx="170" cy="30" r="22" fill="#2a78d6"/>
+          <text x="170" y="35" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">R</text>
+          <circle cx="110" cy="110" r="22" fill="#1baf7a"/>
+          <text x="110" y="115" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">p1</text>
+          <circle cx="115" cy="192" r="20" fill="#eae9e4" stroke="#898781" stroke-width="2"/>
+          <text x="115" y="197" text-anchor="middle" fill="#0b0b0b" font-size="13" font-weight="700">x</text>
+          <circle cx="230" cy="192" r="20" fill="#eae9e4" stroke="#898781" stroke-width="2"/>
+          <text x="230" y="197" text-anchor="middle" fill="#0b0b0b" font-size="13" font-weight="700">y</text>
+        </svg>
+      </div>
+    </div>
+    <div class="call"><code>remove_redundant_vertex(rede, "p2")</code></div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- 5. suppress_unary_vertex -->
+  <!-- ============================================================ -->
+  <section class="op">
+    <p class="op-title">5. <code>suppress_unary_vertex</code> — remover um vértice sem ramificação</p>
+    <p class="op-desc">
+      O vértice <strong>a</strong> tem exatamente um pai (R) e um filho (b) —
+      não representa nenhuma bifurcação, só um passo a mais no caminho. Ele é
+      suprimido: removido, e uma aresta direta liga seu antigo pai ao seu
+      antigo filho.
+    </p>
+    <div class="panels">
+      <div class="panel">
+        <div class="panel-label">Antes</div>
+        <svg viewBox="0 0 240 300" width="240" height="300">
+          <line x1="170" y1="45" x2="170" y2="98" stroke="#d03b3b" stroke-width="2.5" stroke-dasharray="6,5" marker-end="url(#arrow-removed)"/>
+          <line x1="170" y1="122" x2="170" y2="178" stroke="#d03b3b" stroke-width="2.5" stroke-dasharray="6,5" marker-end="url(#arrow-removed)"/>
+          <line x1="170" y1="212" x2="170" y2="258" stroke="#c3c2b7" stroke-width="2.5" marker-end="url(#arrow-normal)"/>
+          <circle cx="170" cy="30" r="22" fill="#2a78d6"/>
+          <text x="170" y="35" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">R</text>
+          <circle cx="170" cy="110" r="22" fill="#eae9e4" stroke="#d03b3b" stroke-width="2.5" stroke-dasharray="4,3"/>
+          <text x="170" y="115" text-anchor="middle" fill="#d03b3b" font-size="13" font-weight="700">a</text>
+          <circle cx="170" cy="195" r="22" fill="#1baf7a"/>
+          <text x="170" y="200" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">b</text>
+          <circle cx="170" cy="278" r="20" fill="#eae9e4" stroke="#898781" stroke-width="2"/>
+          <text x="170" y="283" text-anchor="middle" fill="#0b0b0b" font-size="12" font-weight="700">leaf</text>
+        </svg>
+      </div>
+      <div class="sep">→</div>
+      <div class="panel">
+        <div class="panel-label">Depois</div>
+        <svg viewBox="0 0 240 300" width="240" height="300">
+          <line x1="170" y1="212" x2="170" y2="258" stroke="#c3c2b7" stroke-width="2.5" marker-end="url(#arrow-normal)"/>
+          <line x1="170" y1="52" x2="170" y2="173" stroke="#0ca30c" stroke-width="3" marker-end="url(#arrow-new)"/>
+          <circle cx="170" cy="30" r="22" fill="#2a78d6"/>
+          <text x="170" y="35" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">R</text>
+          <circle cx="170" cy="195" r="22" fill="#1baf7a"/>
+          <text x="170" y="200" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">b</text>
+          <circle cx="170" cy="278" r="20" fill="#eae9e4" stroke="#898781" stroke-width="2"/>
+          <text x="170" y="283" text-anchor="middle" fill="#0b0b0b" font-size="12" font-weight="700">leaf</text>
+        </svg>
+      </div>
+    </div>
+    <div class="call"><code>suppress_unary_vertex(rede, "a")</code></div>
+  </section>
+
+  <footer>
+    Vértice com contorno vermelho tracejado = será removido nesta edição.
+    Nenhuma dessas edições, sozinha, garante que a rede continua explicando o
+    mesmo (weak) best match graph — isso é checado por fora, via
+    <code>try_edit(..., still_valid=...)</code>, quando esse comparador
+    existir (task 2.2b/d).
+  </footer>
+
+</div>
+</body>
+</html>
