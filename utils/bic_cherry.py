@@ -1,88 +1,111 @@
-from os import path
-from bmg import load_bmg
-
+from itertools import combinations, product
 import networkx as nx
 
-AVAILABLE_COLORS = ['tab:red', 'tab:blue', 'tab:green', 'tab:orange', 'tab:cyan', 'tab:purple', 'tab:gray']
-BIC_FILE='trees/bic_cherry.gml'
 
-def build_species_color_map(bmg, colors: list[str]) -> dict:
-    species_color_map = dict()
-    for node, data in bmg.nodes(data=True):
-        node_species = data.get("color", "None")
+def bic_cherry(bmg: nx.DiGraph):
+    """
+    Construct BIC-cherry network (before any extensions)
 
-        if node_species not in species_color_map.keys():
-            species_color_map[node_species] = colors.pop(0)
+    Parameters:
+    bmg: valid bmg graph, no self loops, sicor-in-hub property
 
-    return species_color_map
+    Returns:
+    network: resulting bic-cherry network
+    pairs: all node pairs of different color (needed for extensions)
+    """
+    # construct BIC-cherry network
+    network = nx.DiGraph()
+    network.add_nodes_from(  # careful: bmg.nodes(data="color") returns a tuple, not a dict!
+        (n, {"color": color}) for n, color in bmg.nodes(data="color")
+    )
 
-def init_graph(bmg, colors) -> nx.DiGraph:
-    graph = nx.DiGraph(name="bic_cherry")
-    graph.add_node("r", color="black", kind='root', layer=3, label="Root")
+    # find all pairs of different colored nodes
+    color_groups = {}  # build dict with with list of all nodes by color
+    for node, color in nx.get_node_attributes(bmg, "color").items():
+        color_groups.setdefault(color, []).append(node)
 
-    for node, data in bmg.nodes(data=True):
-        node_color = data.get("color", "None")
-        node_species = data.get("species", "None")
-        graph.add_node(node, species=node_species, color=node_color, kind='leaf', layer=0, label=node)
-    return graph
+    pairs = []  # collect all pairs of different color
+    colors = list(color_groups.keys())
 
-def add_cherry_parents(graph: nx.DiGraph) -> nx.DiGraph:
-    leaf_data = [
-        (n, data['color'])
-        for n, data in graph.nodes(data=True)
-        if data.get('kind') == 'leaf'
+    for x, y in combinations(colors, 2):
+        pairs.extend(product(color_groups[x], color_groups[y]))
+
+    # build root and basic parent nodes and basic edges
+    network.add_node("R", color=None)  # new root
+    for x, y in pairs:
+        network.add_node(f"p:{x}|{y}", color=None)
+        network.add_edge("R", f"p:{x}|{y}")
+        network.add_edge(f"p:{x}|{y}", x)
+        network.add_edge(f"p:{x}|{y}", y)
+
+        network.add_node(f"p:{y}|{x}", color=None)
+        network.add_edge("R", f"p:{y}|{x}")
+        network.add_edge(f"p:{y}|{x}", x)
+        network.add_edge(f"p:{y}|{x}", y)
+    return network, pairs
+
+
+def bic_cherry_extension(bmg):
+    """
+    Construct explaining network from BMG using the BIC-cherry + Expansion Algo from the paper.
+
+    Parameters:
+    bmg: valid bmg graph, no self loops, sicor-in-hub property
+
+    Returns:
+    network: an explaining network for input BMG
+    """
+    network, pairs = bic_cherry(bmg)
+    bmg_edges = set(bmg.edges())
+
+    # pairs to do extensions for (direction sensitive)
+    extend_pairs = [
+        edge for (u, v) in pairs for edge in [(u, v), (v, u)] if edge not in bmg_edges
     ]
 
-    for i in range(len(leaf_data)):
-        for j in range(i + 1, len(leaf_data)):
-            label_i, color_i = leaf_data[i]
-            label_j, color_j = leaf_data[j]
-            if color_i != color_j:
-                parent_name = f"p_{label_j}-{label_i}"
-                parent_label = f"P_{label_j}-{label_i}"
-                graph.add_node(parent_name, color="tab:gray", kind='cherry_parent', layer=2, label=parent_label)
-                graph.add_edge("r", parent_name)
-                graph.add_edge(parent_name, label_i)
-                graph.add_edge(parent_name, label_j)
-    return graph
+    for x, y in extend_pairs:
+        z = [
+            n
+            for n, color in bmg.nodes(data="color")
+            if n != y and color == bmg.nodes[y]["color"]
+        ][0]
 
-def bic_extension(graph: nx.DiGraph, parent_node, child_node, extension_leaf_node) -> nx.DiGraph:
-    if (extension_leaf_node, child_node) not in graph.edges:
-        raise ValueError("extension edge not in bmg")
+        network.add_node(f"q:{x}|{z}", color=None)
+        network.add_edge(f"p:{x}|{y}", f"q:{x}|{z}")
+        network.add_edge(f"q:{x}|{z}", x)
+        network.add_edge(f"q:{x}|{z}", z)
 
-    if (parent_node, extension_leaf_node) not in graph.edges:
-        extension_node = f"q_{child_node}-{extension_leaf_node}"
-        extension_label = f"Q_{child_node}-{extension_leaf_node}"
+    return network
 
-        graph.add_node(extension_node, color="darkgray", kind="extension", layer=1, size=5000, label=extension_label)
-        graph.add_edge(parent_node, extension_node)
-        graph.remove_edge(parent_node, child_node)
-        graph.add_edge(extension_node, child_node, edge_color="blue")
-        graph.add_edge(extension_node, extension_leaf_node, edge_color="blue")
 
-        return graph
-    return graph
+def restricted_bic_cherry_extension(bmg):
+    """
+    Construct explaining network from BMG using the BIC-cherry + Expansion Algo from the paper where expansion partner nodes (z)
+    must be chosen such that (x, z) is an edge in the BMG
 
-def save_cherry(graph: nx.DiGraph):
-    print("saving bic_cherry")
-    nx.write_gml(graph, BIC_FILE)
-    
-def load_cherry():
-    print("loading bic_cherry")
-    return nx.read_gml(BIC_FILE)
+    Parameters:
+    bmg: valid bmg graph, no self loops, sicor-in-hub property
 
-def main():
-    s, t, g = load_bmg()
+    Returns:
+    network: an explaining network for input BMG
+    """
+    network, pairs = bic_cherry(bmg)
+    bmg_edges = set(bmg.edges())
 
-    if path.exists(BIC_FILE):
-        return load_cherry()
-    else:
-        species_color_map = build_species_color_map(g, AVAILABLE_COLORS)
-        bic_cherry = init_graph(g, species_color_map)
-        bic_cherry = add_cherry_parents(bic_cherry)
-        save_cherry(bic_cherry)
-        # bic_cherry = bic_extension(bic_cherry, "p_3-7", 7, 5)
-        # draw_graph(bic_cherry)
+    # pairs to do extensions for (both directions!)
+    extend_pairs = [
+        edge for (u, v) in pairs for edge in [(u, v), (v, u)] if edge not in bmg_edges
+    ]
 
-if __name__ == "__main__":
-    main()
+    for x, y in extend_pairs:
+        z = [
+            n
+            for n, color in bmg.nodes(data="color")
+            if n != y and color == bmg.nodes[y]["color"] and (x, n) in set(bmg.edges())
+        ][0]
+        network.add_node(f"q:{x}|{z}", color=None)
+        network.add_edge(f"p:{x}|{y}", f"q:{x}|{z}")
+        network.add_edge(f"q:{x}|{z}", x)
+        network.add_edge(f"q:{x}|{z}", z)
+
+    return network

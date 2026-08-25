@@ -1,21 +1,14 @@
-import matplotlib.pyplot as plt
-import networkx as nx
-from asymmetree.analysis.best_matches import bmg_from_tree
-from asymmetree.utils.phylogenetic_trees import random_colored_tree
+from utils.graph_utils import show_graph, transform
+from utils.tree_utils import create_gene_tree
 
-
-def main():
-    n = 2
-    colors = 2
-    bic_tree = random_colored_tree(n, colors)
-    print(bic_tree.to_newick())
-    bmg = bmg_from_tree(bic_tree)
-    nx.draw_networkx(bmg)
-    plt.show()
-
-
-"""
-GOAL: Edit a bicolored tree into a phylogenetic network by inserting hybridization vertices
-"""
 if __name__ == "__main__":
-    main()
+    # G = nx.read_gml("tests/gene_tree_test_file.gml")
+    species = 10
+    species_tree_age = 1
+    trees = create_gene_tree(species, species_tree_age)
+
+    gene_tree_di_graph = trees.gene_tree
+    species_tree_di_graph = trees.gene_tree
+
+    G_transformed = transform(gene_tree_di_graph, 10)
+    show_graph(G_transformed)
