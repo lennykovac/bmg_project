@@ -40,6 +40,26 @@ def print_graph_diff(g1, g2):
     print("Only in g2:", set(g2.edges) - set(g1.edges))
 
 
+def print_compare_bmg(orig_network, bmg, rec_network, new_bmg):
+    print("\n ---- Ursprüngliches Netzwerk N ----")
+    print("Knoten:", list(orig_network.nodes(data=True)))
+    print("Kanten:", list(orig_network.edges()))
+
+    print("\n--- BMG edges ---")
+    print("bmg edges:", set(bmg.edges()))
+
+    print("\n ---- Rekonstruiertes Netzwerk N --- '")
+    print("Knoten:", list(rec_network.nodes(data=True)))
+    print("Kanten:", list(rec_network.edges()))
+
+    print("\n--- new BMG edges ---")
+    print("new_bmg edges:", set(new_bmg.edges()))
+
+    print("\n--- Edge differences---")
+    print("Only in bmg:", set(bmg.edges()) - set(new_bmg.edges()))
+    print("Only in new_bmg:", set(new_bmg.edges()) - set(bmg.edges()))
+
+
 def insert_node_on_edge(node_for_adding: Any, edge: Tuple[Any, Any], G: nx.DiGraph):
     """
     Inserts a node onto an edge and removes the old redundant edge
@@ -81,7 +101,8 @@ def add_hybrid_node(
     """
     # we have to check if a path exists from the source of the donor edge to the source of the hybrid edge
     if nx.has_path(G, hybrid_edge[0], donor_edge[0]):
-        print("Cant insert hybrid node")
+        return
+        #print("Cant insert hybrid node")
         # raise Exception("Cant insert hybrid. It would make the Graph cyclic.")
     else:
         # first insert donor to donor_edge
