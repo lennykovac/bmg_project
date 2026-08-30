@@ -151,14 +151,16 @@ def wbmg_edge_count_relationship(total_runs):
 
 
 
+
 if __name__ == "__main__":
-    print("Test 1: new bmg no additional edges")
+    print("Tests for p_xy = p_yx")
+    print("Test 1: the new BMG has no additional edges")
     test_reconstructed_bmg_has_no_additional_edges()
 
-    print("Test 2: new bmg missing edges are weak best matches")
+    print("Test 2: all missing edges in the new BMG are weak best matches")
     test_missing_edges_are_weak_best_matches()
 
-    print("All tests passed!")
+
 
 
 wbmg_edge_count_relationship(1000)
