@@ -1,4 +1,5 @@
 from collections import defaultdict
+from typing import Any, Hashable, Optional
 
 import networkx as nx
 
@@ -207,6 +208,41 @@ def remove_useless_vertex(network: nx.DiGraph, v) -> nx.DiGraph:
     network.remove_node(v)
     network.add_edge(parent, child)
     return network
+
+
+def contract_edge(network: nx.DiGraph, u: Hashable, v: Hashable) -> None:
+    """
+    Contracts the INTERNAL edge (u, v): v disappears, and u directly inherits all of v's children.
+
+    Used to build the LRT starting from ANY tree that explains a BMG
+
+    Only meaningful on TREES (v with exactly 1 parent) -- unlike
+    pull_up/pull_down, which reattach an edge while preserving both
+    vertices, contract_edge merges the two vertices into ONE.
+
+    Raises ValueError if:
+      - (u, v) is not an edge of the network;
+      - v is a leaf (contracting an EXTERNAL edge would remove a leaf,
+        changing the leaf set);
+      - v has more than 1 parent (contraction is only well-defined when
+        v has exactly 1 parent, which always holds in trees).
+    """
+    if not network.has_edge(u, v):
+        raise ValueError(f"No edge ({u!r}, {v!r}) in the network")
+    if _is_leaf(network, v):
+        raise ValueError(
+            f"{v!r} is a leaf; only INTERNAL edges can be contracted"
+        )
+    if network.in_degree(v) != 1:
+        raise ValueError(
+            f"contract_edge only applies when {v!r} has exactly 1 parent "
+            f"(has {network.in_degree(v)}) -- use pull_up/pull_down on networks"
+        )
+
+    children = list(network.successors(v))
+    network.remove_node(v)
+    for child in children:
+        network.add_edge(u, child)
 
 
 def try_edit(network: nx.DiGraph, edit_fn, *args, still_valid=None, **kwargs):
