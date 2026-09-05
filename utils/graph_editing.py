@@ -1,4 +1,5 @@
 from typing import Any, Hashable, Optional
+from utils.graph_utils import bmg_from_network, wbmg_from_network
 
 import networkx as nx
 
@@ -183,6 +184,9 @@ def contract_edge(network: nx.DiGraph, u: Hashable, v: Hashable) -> None:
     for child in children:
         network.add_edge(u, child)
 
+def bmg_is_same(network1, network2, mode='wbmg') -> bool:
+    compute_fn = bmg_from_network if mode == 'bmg' else wbmg_from_network
+    return set(compute_fn(network1).edges()) == set(compute_fn(network2).edges())
 
 def try_edit(network: nx.DiGraph, edit_fn, *args: Any, still_valid=None, **kwargs: Any) -> tuple[nx.DiGraph, bool]:
     """

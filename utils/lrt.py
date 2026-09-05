@@ -3,9 +3,7 @@ from typing import Hashable
 
 import networkx as nx
 
-from utils.graph_editing import contract_edge, try_edit
-from utils.graph_utils import root_from_network
-from utils.network_search import make_still_valid
+from utils.graph_editing import contract_edge, try_edit, bmg_is_same
 
 
 @dataclass
@@ -35,7 +33,7 @@ def compute_lrt(tree: nx.DiGraph, mode: str = "bmg", max_rounds: int = 200) -> t
     is never mutated, because of how `try_edit` works).
     """
 
-    still_valid = make_still_valid(mode)
+    still_valid = lambda b, a: bmg_is_same(b, a, mode=mode)
     report = LrtReport(mode=mode)
 
     for round_i in range(max_rounds):
@@ -62,7 +60,7 @@ def is_least_resolved(tree: nx.DiGraph, mode: str = "bmg") -> bool:
     just stopped due to max_rounds).
     """
 
-    still_valid = make_still_valid(mode)
+    still_valid = lambda b, a: bmg_is_same(b, a, mode=mode)
     for u, v in _internal_edges(tree):
         _, applied = try_edit(tree, contract_edge, u, v, still_valid=still_valid)
         if applied:
