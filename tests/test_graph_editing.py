@@ -7,7 +7,7 @@ from utils.graph_editing import (
     pull_up,
     pull_up_to_common_ancestor,
     remove_redundant_vertex,
-    remove_useless_vertex,
+    remove_one_to_one_vertex,
     try_edit,
 )
 
@@ -184,7 +184,7 @@ class TestTwinVertices:
 
 class TestRemoveUselessVertex:
     def test_suppresses_a_one_parent_one_child_vertex(self, chain_network):
-        remove_useless_vertex(chain_network, "a")
+        remove_one_to_one_vertex(chain_network, "a")
 
         assert "a" not in chain_network
         assert chain_network.has_edge("R", "b")
@@ -192,11 +192,11 @@ class TestRemoveUselessVertex:
 
     def test_raises_for_a_vertex_with_more_than_one_child(self, diamond_network):
         with pytest.raises(ValueError):
-            remove_useless_vertex(diamond_network, "p1")
+            remove_one_to_one_vertex(diamond_network, "p1")
 
     def test_refuses_to_suppress_a_leaf(self, chain_network):
         with pytest.raises(ValueError):
-            remove_useless_vertex(chain_network, "leaf")
+            remove_one_to_one_vertex(chain_network, "leaf")
 
 
 class TestTryEdit:

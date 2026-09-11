@@ -129,7 +129,7 @@ def remove_redundant_vertex(network: nx.DiGraph, u: Hashable) -> None:
     network.remove_node(u)
 
 
-def remove_useless_vertex(network: nx.DiGraph, v: Hashable) -> None:
+def remove_one_to_one_vertex(network: nx.DiGraph, v: Hashable) -> None:
     """Removes a vertex `v` that has exactly 1 parent and 1 child """
 
     children = list(network.successors(v))

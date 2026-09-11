@@ -4,7 +4,7 @@ graph as N?"
 
 Task 2.2(e)/(f): search heuristic that applies pull_up_to_common_ancestor
 (to collapse multi-parent vertices) and the cleanup find_twin_vertices/
-remove_redundant_vertex + remove_useless_vertex (task 2.2c), each step
+remove_redundant_vertex + remove_one_to_one_vertex (task 2.2c), each step
 guarded by `try_edit(..., still_valid=...)`, trying to bring the
 BIC-cherry+expansion network (N, sigma) as close to "tree-like" as
 possible without ceasing to explain the same (weak) BMG.
@@ -20,7 +20,7 @@ from utils.graph_editing import (
     pull_up,
     pull_up_to_common_ancestor,
     remove_redundant_vertex,
-    remove_useless_vertex,
+    remove_one_to_one_vertex,
     try_edit,
 )
 from utils.graph_utils import bmg_from_network, root_from_network, wbmg_from_network
@@ -59,7 +59,7 @@ class SearchReport:
     resolved_hybrids: list = field(default_factory=list)   # [(vertex, ancestor_used), ...]
     stuck_hybrids: list = field(default_factory=list)      # vertices where NO pull validated
     twins_removed: int = 0
-    useless_removed: int = 0
+    one_to_one_removed: int = 0
     is_tree: bool = False
 
 
@@ -167,7 +167,7 @@ def _try_resolve_hybrid(network, v, root, still_valid):
 def _cleanup_pass(network, still_valid):
     """
     One round of find_twin_vertices/remove_redundant_vertex and
-    remove_useless_vertex, each application guarded by try_edit.
+    remove_one_to_one_vertex, each application guarded by try_edit.
     """
 
     n_twins = 0
@@ -188,7 +188,7 @@ def _cleanup_pass(network, still_valid):
             if changed:
                 break
 
-    n_useless = 0
+    n_one_to_one = 0
     changed = True
     while changed:
         changed = False
@@ -198,15 +198,15 @@ def _cleanup_pass(network, still_valid):
         ]
         for v in candidates:
             result, applied = try_edit(
-                network, remove_useless_vertex, v, still_valid=still_valid
+                network, remove_one_to_one_vertex, v, still_valid=still_valid
             )
             if applied:
                 network = result
-                n_useless += 1
+                n_one_to_one += 1
                 changed = True
                 break
 
-    return network, n_twins, n_useless
+    return network, n_twins, n_one_to_one
 
 
 def reduce_to_tree(
@@ -240,10 +240,10 @@ def reduce_to_tree(
             else:
                 stuck.add(v)
 
-        network, n_twins, n_useless = _cleanup_pass(network, still_valid)
+        network, n_twins, n_one_to_one = _cleanup_pass(network, still_valid)
         report.twins_removed += n_twins
-        report.useless_removed += n_useless
-        any_change = any_change or n_twins > 0 or n_useless > 0
+        report.one_to_one_removed += n_one_to_one
+        any_change = any_change or n_twins > 0 or n_one_to_one > 0
 
         if not any_change:
             break
