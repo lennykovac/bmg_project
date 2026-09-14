@@ -4,7 +4,7 @@ import pytest
 from utils.graph_editing import contract_edge, try_edit
 from utils.graph_utils import bmg_from_network, transform, wbmg_from_network
 from utils.lrt import compute_lrt, is_least_resolved
-from utils.tree_utils import create_gene_tree
+from utils.tree_utils import create_gene_tree_n_leaves
 
 
 def node(color=None):
@@ -121,7 +121,9 @@ class TestComputeLrtRealTrees:
     def test_lrt_preserves_bmg_and_is_a_genuine_fixed_point(self, mode):
         compute = bmg_from_network if mode == "bmg" else wbmg_from_network
         for seed_species in [3, 5, 8]:
-            tree = create_gene_tree(species=seed_species, spt_age=1.0).gene_tree
+            tree = create_gene_tree_n_leaves(
+                leaves=2 * seed_species, species=seed_species, spt_age=1.0
+            ).gene_tree
             reference = compute(tree)
 
             lrt, report = compute_lrt(tree, mode=mode)
@@ -132,7 +134,7 @@ class TestComputeLrtRealTrees:
             assert all(lrt.in_degree(v) <= 1 for v in lrt.nodes)
 
     def test_lrt_is_never_larger_than_the_input_tree(self):
-        tree = create_gene_tree(species=6, spt_age=1.0).gene_tree
+        tree = create_gene_tree_n_leaves(leaves=12, species=6, spt_age=1.0).gene_tree
         lrt, report = compute_lrt(tree, mode="bmg")
         assert lrt.number_of_nodes() <= tree.number_of_nodes()
         assert len(report.contracted_edges) == (
@@ -145,7 +147,7 @@ class TestComputeLrtRealTrees:
         # edges) does nothing wrong when applied to a network that is no
         # longer a pure tree (it should simply find no contractible edge
         # at the multi-parent vertices and stop).
-        tree = create_gene_tree(species=5, spt_age=1.0).gene_tree
+        tree = create_gene_tree_n_leaves(leaves=10, species=5, spt_age=1.0).gene_tree
         hybrid = transform(tree.copy(), 2)
         reference = bmg_from_network(hybrid)
 

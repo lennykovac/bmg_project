@@ -9,7 +9,7 @@ from utils.graph_utils import (
     check_sicorinhub,
 )
 import pytest
-from utils.tree_utils import create_gene_tree
+from utils.tree_utils import create_gene_tree_n_leaves
 from asymmetree.analysis import bmg_from_tree
 
 
@@ -52,9 +52,10 @@ def sample_graph_2():
 def test_bmg_properties():
     # generate 10 random gene networks
     species = 10
+    leaves = 20
     species_tree_age = 1
     for i in range(10):
-        trees = create_gene_tree(species, species_tree_age)
+        trees = create_gene_tree_n_leaves(leaves, species, species_tree_age)
 
         gene_tree_di_graph = trees.gene_tree
 
@@ -106,10 +107,11 @@ def test_wbmg_structure(sample_graph_1):
 # for trees, bmg=wbmg and bmg_from_tree of Asymmetree should also return the same result
 def test_bmg_wbmg_tree():
     species = 10
+    leaves = 20
     species_tree_age = 1
     for i in range(10):
         # asymmetree uses Tree class, our methods use nx.DiGraph
-        tree_class = create_gene_tree(species, species_tree_age)
+        tree_class = create_gene_tree_n_leaves(leaves, species, species_tree_age)
         gene_tree = tree_class.gene_tree
         tree = tree_class.original_gene_tree
         bmg = bmg_from_network(gene_tree)
@@ -122,9 +124,10 @@ def test_bmg_wbmg_tree():
 # test if bmg from cherry network is actually a maximally connected bmg
 def test_bmg_from_cherry():
     species = 2
+    leaves = 10
     species_tree_age = 1
     for i in range(2):
-        tree = create_gene_tree(species, species_tree_age).gene_tree
+        tree = create_gene_tree_n_leaves(leaves, species, species_tree_age).gene_tree
 
         network = transform(tree, 2)
 
