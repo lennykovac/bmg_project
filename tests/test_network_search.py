@@ -4,7 +4,7 @@ import pytest
 from utils.bic_cherry import bic_cherry_extension
 from utils.graph_utils import bmg_from_network, transform, wbmg_from_network
 from utils.network_search import make_still_valid, reduce_to_tree
-from utils.tree_utils import create_gene_tree
+from utils.tree_utils import create_gene_tree_n_leaves
 
 
 def node(color=None):
@@ -111,7 +111,7 @@ class TestReduceToTreeRealPipeline:
     @pytest.mark.parametrize("mode", ["bmg", "wbmg"])
     def test_bic_cherry_explanation_of_a_real_tree_bmg_reduces_to_a_tree(self, mode):
         # real tree -> real bmg (no hybridization: should be 100% reducible)
-        tree = create_gene_tree(species=6, spt_age=1.0).gene_tree
+        tree = create_gene_tree_n_leaves(leaves=12, species=6, spt_age=1.0).gene_tree
         bmg = bmg_from_network(tree)
         network = bic_cherry_extension(bmg)
 
@@ -127,7 +127,7 @@ class TestReduceToTreeRealPipeline:
     @pytest.mark.parametrize("mode", ["bmg", "wbmg"])
     def test_heuristic_never_breaks_the_bmg_even_with_real_hybridization(self, mode):
         # now with genuine hybridization inserted via transform()
-        tree = create_gene_tree(species=6, spt_age=1.0).gene_tree
+        tree = create_gene_tree_n_leaves(leaves=12, species=6, spt_age=1.0).gene_tree
         hybrid_tree = transform(tree.copy(), 3)
         compute = bmg_from_network if mode == "bmg" else wbmg_from_network
         source_bmg = compute(hybrid_tree)

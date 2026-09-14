@@ -56,12 +56,23 @@ def insert_node_on_edge(node_for_adding: Any, edge: Tuple[Any, Any], G: nx.DiGra
 
     Parameters:
     node_for_adding: New node
-    edge: on which the node should en placed
+    edge: on which the node should be placed
     G: Directed Graph
+
+    Raises:
+    ValueError: if the edge is not in G or the node is already in G. Both are
+    checked up front, so a failing call leaves G untouched.
     """
-    parent_node = edge[0]
-    child_node = edge[1]
-    # add new node (to set color to none do this explicitly!)
+    parent_node, child_node = edge
+
+    # validate before we touch G, otherwise a bad edge leaves a half inserted
+    # node behind (add_node and add_edge would already have run)
+    if not G.has_edge(parent_node, child_node):
+        raise ValueError(f"{edge} is not an edge of G")
+    if node_for_adding in G:
+        raise ValueError(f"{node_for_adding} is already a vertex of G")
+
+    # add new node TODO: think about default color
     G.add_node(node_for_adding, color=None)
     # add edge from parent_node to new_node
     G.add_edge(parent_node, node_for_adding)
@@ -77,60 +88,82 @@ def add_hybrid_node(
     donor: Any,
     hybrid: Any,
     G: nx.DiGraph,
-    tries: int,
-    inserts: int
 ) -> bool:
     """
     Connects 2 nodes on 2 edges with each other and creates one hybrid node!
+    Function is inplace, but only touches G if it returns True.
 
     Parameters:
     donor_edge: Edge on which the donor node is placed
     hybrid_edge: Edge on which the hybrid now is placed (it has two parents)
     donor: donor node which "donates" an edge
     hybrid: hybrid node which gets another parent (donor)
+    G: Directed Graph
+
+    Returns:
+    True if the hybrid node was inserted, False if the pair of edges was
+    refused because it would have closed a cycle. The caller counts.
     """
-    # we have to check if a path exists from the source of the donor edge to the source of the hybrid edge
-    if nx.has_path(G, donor_edge[0], hybrid_edge[0]):
-        tries -= 1 
-        return
-    else:
-        # first insert donor to donor_edge
-        insert_node_on_edge(donor, donor_edge, G)
-        # second insert hybrid to hybrid_edge
-        insert_node_on_edge(hybrid, hybrid_edge, G)
-        # third add edge between donor and hybrid
-        G.add_edge(donor, hybrid)
-        inserts += 1
+    # after the insertion the only parent of donor is donor_edge[0] and the
+    # only child of hybrid is hybrid_edge[1], so the new donor -> hybrid edge
+    # closes a cycle exactly if hybrid can already reach donor. Subdividing an
+    # edge keeps reachability
+    if nx.has_path(G, hybrid_edge[1], donor_edge[0]):
+        return False
+
+    # first insert donor to donor_edge
+    insert_node_on_edge(donor, donor_edge, G)
+    # second insert hybrid to hybrid_edge
+    insert_node_on_edge(hybrid, hybrid_edge, G)
+    # third add edge between donor and hybrid
+    G.add_edge(donor, hybrid)
+    return True
 
 
-def transform(graph: nx.DiGraph, num_of_hybrid_nodes: int, tries = 7) -> nx.DiGraph:
+def transform(graph: nx.DiGraph, num_of_hybrid_nodes: int, attempts = 7) -> nx.DiGraph:
     """
-    GOAL: Edit a bicolored tree into a phylogenetic network by inserting random hybridization vertices
-    We dont want this inplace i guess.
+    Edit a bicolored tree into a phylogenetic network by inserting random hybridization vertices
+    This is not inplace, so the original network will be conserved.
 
     Parameters:
     di_graph: The di_graph on which the hybrid nodes will be inserted
-    num_of_hybrid_nodes: The amount of hybrid nodes we would like to have
-    tries: number of tries before we skip stop inserting nodes default 7 (cuz i like the number)
+    num_of_hybrid_nodes: The amount of hybrid nodes we would like to have, cant be guaranteed.
+    attempts: number of refused edge pairs we tolerate before we stop
+        inserting nodes, default 7 (cuz i like the number)
 
     Returns:
     A nx.DiGraph object.
     """
     # number of succesful inserts
     insertions = 0
-    # keep old data intact for now
-    transformer_graph = graph
-    # get all edges
-    edge_list = graph.edges
+    # keep old data intact
+    transformer_graph = graph.copy()
+    # a refused pair of edges costs budget, a successful one does not, so we
+    # really get num_of_hybrid_nodes as long as the graph allows it
+    budget = attempts
 
-    # sample two random edges
-    for i in range(num_of_hybrid_nodes):
-        if tries == 0: 
-            print(f"Number of succesfull insertions: {insertions}")
-            return transformer_graph
+    # names of the inserted vertices, counts on past the ones an earlier
+    # transform() call may already have put into this graph
+    label = 0
 
+    while insertions < num_of_hybrid_nodes and budget > 0:
+        # fresh pull out of the Urne :D , the edges change with every insertion
+        edge_list = list(transformer_graph.edges)
+        if len(edge_list) < 2:
+            break
+
+        donor, hybrid = f"{label}_d", f"{label}_h"
+        while donor in transformer_graph or hybrid in transformer_graph:
+            label += 1
+            donor, hybrid = f"{label}_d", f"{label}_h"
+
+        # sample two random edges
         donor_e, hybrid_e = random.sample(edge_list, 2)
-        add_hybrid_node(donor_e, hybrid_e, f"{i}_d", f"{i}_h", transformer_graph, tries, insertions)
+        if add_hybrid_node(donor_e, hybrid_e, donor, hybrid, transformer_graph):
+            insertions += 1
+            label += 1
+        else:
+            budget -= 1
 
     print(f"Number of succesfull insertions: {insertions}")
     return transformer_graph
