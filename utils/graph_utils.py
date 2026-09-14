@@ -20,8 +20,17 @@ def show_graph(di_graph: nx.DiGraph):
     Shows u a neat graph view of the DAG
     """
     nt = Network("1000px", "1000px", directed=True)
-    for node in di_graph.nodes():
-        di_graph.nodes[node]["label"] = str(node)
+
+    for node, node_data in di_graph.nodes(data=True):
+        node_data["label"] = str(node)
+        title_parts = []
+        if "reconc" in node_data:
+            reconc_value = node_data["reconc"]
+            title_parts.append(f"reconc: {reconc_value}")
+        if "dist" in node_data:
+            title_parts.append(f"dist: {node_data['dist']}")
+        if title_parts:
+            node_data["title"] = "\n".join(title_parts)
 
     nt.from_nx(di_graph)
     nt.show("nx.html", notebook=False)
@@ -62,14 +71,15 @@ def insert_node_on_edge(node_for_adding: Any, edge: Tuple[Any, Any], G: nx.DiGra
     G.remove_edge(parent_node, child_node)
 
 
-# TODO: Check over dist. attribute in node if we have a cycle
 def add_hybrid_node(
     donor_edge: Tuple[Any, Any],
     hybrid_edge: Tuple[Any, Any],
     donor: Any,
     hybrid: Any,
     G: nx.DiGraph,
-):
+    tries: int,
+    inserts: int
+) -> bool:
     """
     Connects 2 nodes on 2 edges with each other and creates one hybrid node!
 
@@ -80,9 +90,9 @@ def add_hybrid_node(
     hybrid: hybrid node which gets another parent (donor)
     """
     # we have to check if a path exists from the source of the donor edge to the source of the hybrid edge
-    if nx.has_path(G, hybrid_edge[0], donor_edge[0]):
-        print("Cant insert hybrid node")
-        # raise Exception("Cant insert hybrid. It would make the Graph cyclic.")
+    if nx.has_path(G, donor_edge[0], hybrid_edge[0]):
+        tries -= 1 
+        return
     else:
         # first insert donor to donor_edge
         insert_node_on_edge(donor, donor_edge, G)
@@ -90,33 +100,39 @@ def add_hybrid_node(
         insert_node_on_edge(hybrid, hybrid_edge, G)
         # third add edge between donor and hybrid
         G.add_edge(donor, hybrid)
+        inserts += 1
 
 
-# TODO: Naiv implementation for now we have to sort out a strategy
-def transform(graph: nx.DiGraph, no_of_hybrid_nodes: int) -> nx.DiGraph:
+def transform(graph: nx.DiGraph, num_of_hybrid_nodes: int, tries = 7) -> nx.DiGraph:
     """
     GOAL: Edit a bicolored tree into a phylogenetic network by inserting random hybridization vertices
     We dont want this inplace i guess.
 
     Parameters:
     di_graph: The di_graph on which the hybrid nodes will be inserted
-    no_of_hybrid_nodes: The amount of hybrid nodes we would like to have
+    num_of_hybrid_nodes: The amount of hybrid nodes we would like to have
+    tries: number of tries before we skip stop inserting nodes default 7 (cuz i like the number)
 
     Returns:
     A nx.DiGraph object.
     """
-
+    # number of succesful inserts
+    insertions = 0
+    # keep old data intact for now
     transformer_graph = graph
     # get all edges
     edge_list = graph.edges
 
-    # warum gibt es in python keine saubere funtion um zwei verschiedene elemente aus einer liste zu samplen!?
-    for i in range(no_of_hybrid_nodes):
-        e0, e1 = random.sample(edge_list, 2)
+    # sample two random edges
+    for i in range(num_of_hybrid_nodes):
+        if tries == 0: 
+            print(f"Number of succesfull insertions: {insertions}")
+            return transformer_graph
 
-        # TODO: Think of a naming convention for hybrid nodes.
-        add_hybrid_node(e0, e1, f"{i}_d", f"{i}_h", transformer_graph)
+        donor_e, hybrid_e = random.sample(edge_list, 2)
+        add_hybrid_node(donor_e, hybrid_e, f"{i}_d", f"{i}_h", transformer_graph, tries, insertions)
 
+    print(f"Number of succesfull insertions: {insertions}")
     return transformer_graph
 
 
@@ -313,8 +329,6 @@ if __name__ == "__main__":
     """
     EXAMPLES:
     """
-
-    G = nx.read_gml("../tests/gene_tree_test_file.gml")
 
     show_graph(G)
 
