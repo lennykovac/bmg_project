@@ -13,7 +13,7 @@
 
 | Todo                                                            | Name    | Tested | Done  |
 | --------------------------------------------------------------- | ------- | ------ | ----- |
-| Hybrid-Node-Insertion (0)                                          | Lenny   | ❗ NO  | ❗ NO |
+| Hybrid-Node-Insertion (0)                                          | Lenny   | ✅  | ✅ |
 | Unit tests for algos (ongoing, 1c) | OPEN    | ❗ NO  | ❗ NO |
 | GraphOperations: "Pull-Up", "Pull-down", "Delete redundant nodes" (2c) | OPEN    | ❗ NO  | ❗ NO |
 | Test if 1b is explanation for wbm Graphs (1d == Obj. 1b?)                  | OPEN | ❗ NO  | ❗ NO |
