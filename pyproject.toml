@@ -8,3 +8,10 @@ dependencies = [
     "asymmetree>=2.3.0",
     "pyvis>=0.3.2",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]
+[tool.pytest.ini_options]
+pythonpath = ["."]
