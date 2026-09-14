@@ -72,7 +72,7 @@ def insert_node_on_edge(node_for_adding: Any, edge: Tuple[Any, Any], G: nx.DiGra
     if node_for_adding in G:
         raise ValueError(f"{node_for_adding} is already a vertex of G")
 
-    # add new node (to set color to none do this explicitly!)
+    # add new node TODO: think about default color
     G.add_node(node_for_adding, color=None)
     # add edge from parent_node to new_node
     G.add_edge(parent_node, node_for_adding)
