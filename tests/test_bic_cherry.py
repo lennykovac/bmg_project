@@ -129,7 +129,6 @@ def test_bic_cherry_extension_generated_examples():
             assert False
 
 
-# observation: only tests on trees! Fails if tested on networks...
 def test_restricted_bic_cherry_extension_generated_examples():
     species = 2
     leaves = 10
@@ -146,7 +145,6 @@ def test_restricted_bic_cherry_extension_generated_examples():
         assert nx.is_isomorphic(bmg, restricted_new_bmg)
 
 
-# this example used to fail before the fix
 def test_bmg_extra(sample_bmg_2):
 
     network = bic_cherry_extension(sample_bmg_2)
