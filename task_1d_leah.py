@@ -14,7 +14,9 @@ from utils.bic_cherry_one_node_init import (
     bic_cherry_extension,
     bic_cherry,
     restricted_bic_cherry_extension,
+    restricted_bic_cherry_more_extensions
 )
+
 
 """
 N -> BMG -> N' -> BMG'
@@ -102,6 +104,35 @@ def wbm_minimal_example(max_leaves=10, runs_per_size=1000):
     return None, None, None, None
 
 
+def wbm_more_extensions_minimal_example(max_leaves=10, runs_per_size=1000):
+    species = 2
+    species_tree_age = 1
+
+    for n_leaves in range(3, max_leaves + 1):
+        print(f"Suche mit {n_leaves} Blättern")
+
+        for i in range(runs_per_size):
+            tree = create_gene_tree(species, species_tree_age).gene_tree
+            graph = transform(tree, 2)
+
+            leaves = [n for n, d in graph.out_degree() if d == 0]
+
+            if len(leaves) != n_leaves:
+                continue
+
+            wbmg = wbmg_from_network(graph)
+
+            network, pairs, extend_pairs = restricted_bic_cherry_more_extensions(wbmg)
+            new_wbmg = wbmg_from_network(network)
+
+            if not nx.is_isomorphic(wbmg, new_wbmg):
+                print(f"Minimales Beispiel gefunden: {n_leaves} Blätter")
+
+                return graph, wbmg, network, pairs, extend_pairs, new_wbmg
+
+    print("Kein Gegenbeispiel more extension gefunden.")
+    return None, None, None, None
+
 def wbmg_edge_count_relationship(total_runs):
     species = 2
     species_tree_age = 1
@@ -113,22 +144,57 @@ def wbmg_edge_count_relationship(total_runs):
     mixed_edges = 0
 
 
+
+
     for _ in range(total_runs):
         tree = create_gene_tree(species, species_tree_age).gene_tree
         graph = transform(tree, 2)
         wbmg = wbmg_from_network(graph)
 
+
+
+
+
         network = restricted_bic_cherry_extension(wbmg)
         new_wbmg = wbmg_from_network(network)
+
+        edges_wbmg = set(wbmg.edges)
+        for edge in edges_wbmg:
+            start = edge[0]
+            end = edge[1]
+            edge_reverse = (end, start)
+            '''
+            if edge_reverse not in edges_wbmg:
+                if edge_reverse not in new_wbmg:
+                    print("new wmbg has single direction edge")
+            '''
+
+
 
         if nx.is_isomorphic(wbmg, new_wbmg):
             isomorphic_count += 1
         else:
-            edges_wbmg = set(wbmg.edges)
             edges_new_wbmg = set(new_wbmg.edges)
 
             added = edges_new_wbmg - edges_wbmg
             missing = edges_wbmg - edges_new_wbmg
+
+            for edge in added:
+                start = edge[0]
+                end = edge[1]
+                if (end, start) not in edges_wbmg:
+                    print("complete new edge")
+
+            for edge in edges_wbmg:
+                start = edge[0]
+                end = edge[1]
+                edge_reverse = (end, start)
+                '''
+                if edge_reverse not in edges_wbmg:
+                    if edge_reverse not in new_wbmg:
+                        print("non isomorphic new wmbg has single direction edge")
+                '''
+
 
             if added and missing:
                 mixed_edges += 1
@@ -138,6 +204,8 @@ def wbmg_edge_count_relationship(total_runs):
                 fewer_edges += 1
             else:
                 same_count += 1
+
+
 
     print("\n--- comparison: WBMG vs. reconstructed WBMG' ---")
     print(f"Total runs: {total_runs}")
@@ -163,8 +231,14 @@ if __name__ == "__main__":
 
 
 
-wbmg_edge_count_relationship(1000)
+#wbmg_edge_count_relationship(1000)
 
-graph, wbmg, network, new_wbmg = wbm_minimal_example()
+#graph, wbmg, network, new_wbmg = wbm_minimal_example()
 
-print_compare_bmg(graph, wbmg, network, new_wbmg)
+graph, wbmg, network, pairs, extend_pairs, new_wbmg =wbm_more_extensions_minimal_example()
+
+#print_compare_bmg(graph, wbmg, network, new_wbmg)
+print_compare_bmg(graph, wbmg, network, pairs, extend_pairs, new_wbmg)
+
+lca_dict = lca_dict_from_network(network)
+print(lca_dict)

@@ -20,8 +20,35 @@ def show_graph(di_graph: nx.DiGraph):
     Shows u a neat graph view of the DAG
     """
     nt = Network("1000px", "1000px", directed=True)
-    for node in di_graph.nodes():
-        di_graph.nodes[node]["label"] = str(node)
+    # pyvis reads "color" as a CSS color, so work on a copy to keep the original attribute intact
+    di_graph = di_graph.copy()
+
+    palette = ["#e74c3c", "#3498db"]
+    distinct_colors = sorted(
+        {c for c in nx.get_node_attributes(di_graph, "color").values() if c is not None},
+        key=str,
+    )
+    if len(distinct_colors) > len(palette):
+        raise ValueError(
+            f"show_graph supports at most {len(palette)} colors, got {len(distinct_colors)}"
+        )
+    color_map = dict(zip(distinct_colors, palette))
+
+    for node, node_data in di_graph.nodes(data=True):
+        node_data["label"] = str(node)
+        color_value = node_data.pop("color", None)
+        if color_value is not None:
+            node_data["color"] = color_map[color_value]
+        title_parts = []
+        if color_value is not None:
+            title_parts.append(f"color: {color_value}")
+        if "reconc" in node_data:
+            reconc_value = node_data["reconc"]
+            title_parts.append(f"reconc: {reconc_value}")
+        if "dist" in node_data:
+            title_parts.append(f"dist: {node_data['dist']}")
+        if title_parts:
+            node_data["title"] = "\n".join(title_parts)
 
     nt.from_nx(di_graph)
     nt.show("nx.html", notebook=False)
@@ -40,7 +67,9 @@ def print_graph_diff(g1, g2):
     print("Only in g2:", set(g2.edges) - set(g1.edges))
 
 
-def print_compare_bmg(orig_network, bmg, rec_network, new_bmg):
+
+
+def print_compare_bmg(orig_network, bmg, rec_network,pairs, extend_pairs, new_bmg):
     print("\n ---- Ursprüngliches Netzwerk N ----")
     print("Knoten:", list(orig_network.nodes(data=True)))
     print("Kanten:", list(orig_network.edges()))
@@ -58,6 +87,12 @@ def print_compare_bmg(orig_network, bmg, rec_network, new_bmg):
     print("\n--- Edge differences---")
     print("Only in bmg:", set(bmg.edges()) - set(new_bmg.edges()))
     print("Only in new_bmg:", set(new_bmg.edges()) - set(bmg.edges()))
+
+    print("\n--- pairs ---")
+    print("pairs:", set(pairs))
+
+    print("\n--- extented pairs ---")
+    print("extend_pairs:", set(extend_pairs))
 
 
 def insert_node_on_edge(node_for_adding: Any, edge: Tuple[Any, Any], G: nx.DiGraph):
