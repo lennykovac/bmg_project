@@ -1,156 +1,94 @@
+"""utils/lrt.py"""
 import networkx as nx
 import pytest
 
-from utils.graph_editing import contract_edge, try_edit
-from utils.graph_utils import bmg_from_network, transform, wbmg_from_network
-from utils.lrt import compute_lrt, is_least_resolved
-from utils.tree_utils import create_gene_tree_n_leaves
+from tests.helpers import colored_graph, colored_tree, edges
+from utils.graph_utils import bmg_from_network, same_phylogeny
+from utils.lrt import (
+    aho_build, contract_vertex, informative_triples, is_least_resolved, lrt_by_contraction,
+    lrt_from_bmg, redundant_edges,
+)
 
 
-def node(color=None):
-    return {"color": color}
+def cluster_set(T):
+    from utils.graph_utils import clusters
+    return set(clusters(T).values())
 
 
-@pytest.fixture
-def chain_network():
-    """R -> a -> b -> leaf, plus R -> leaf2."""
-    g = nx.DiGraph()
-    g.add_node("R", **node())
-    g.add_node("a", **node())
-    g.add_node("b", **node())
-    g.add_node("leaf", **node("X"))
-    g.add_node("leaf2", **node("Y"))
-    g.add_edges_from([("R", "a"), ("a", "b"), ("b", "leaf"), ("R", "leaf2")])
-    return g
+def test_informative_triples(example_tree):
+    G = bmg_from_network(example_tree)
+    assert informative_triples(G) == {("b1", "a1", "a2")}      # b1->a1 in E, b1->a2 not
 
 
-class TestContractEdge:
-    def test_contracts_internal_edge_reparenting_children(self, chain_network):
-        contract_edge(chain_network, "R", "a")
-
-        assert "a" not in chain_network
-        assert chain_network.has_edge("R", "b")
-        assert chain_network.has_edge("b", "leaf")
-        assert chain_network.has_edge("R", "leaf2")  # untouched
-
-    def test_missing_edge_raises(self, chain_network):
-        with pytest.raises(ValueError):
-            contract_edge(chain_network, "R", "b")  # (R, b) is not an edge
-
-    def test_refuses_external_edge_into_a_leaf(self, chain_network):
-        with pytest.raises(ValueError):
-            contract_edge(chain_network, "b", "leaf")  # leaf is a leaf
-
-    def test_refuses_when_v_has_more_than_one_parent(self):
-        g = nx.DiGraph()
-        g.add_node("R", **node())
-        g.add_node("p1", **node())
-        g.add_node("p2", **node())
-        g.add_node("v", **node())
-        g.add_node("x", **node("X"))
-        g.add_edges_from([("R", "p1"), ("R", "p2"), ("p1", "v"), ("p2", "v"), ("v", "x")])
-        with pytest.raises(ValueError):
-            contract_edge(g, "p1", "v")
-
-    def test_try_edit_integration_does_not_mutate_original(self, chain_network):
-        before_edges = set(chain_network.edges())
-        result, applied = try_edit(chain_network, contract_edge, "R", "a")
-        assert applied is True
-        assert set(chain_network.edges()) == before_edges  # original untouched
-        assert "a" not in result
+def test_informative_triples_empty_for_star(star_bmg):
+    assert informative_triples(star_bmg) == set()
 
 
-class TestComputeLrtHandExample:
-    """The example from tree_bmg_lrt.html: x1, x2, x3 (color X) carry no
-    information relevant to the BMG among themselves (same distance to
-    y1 and y2), so B and C are redundant and the LRT flattens all three
-    directly under A."""
-
-    @pytest.fixture
-    def hand_tree(self):
-        T = nx.DiGraph()
-        for n in ["r", "A", "B", "C"]:
-            T.add_node(n, color=None)
-        for leaf in ["x1", "x2", "x3"]:
-            T.add_node(leaf, color="X")
-        for leaf in ["y1", "y2"]:
-            T.add_node(leaf, color="Y")
-        T.add_edges_from([
-            ("r", "A"), ("r", "y1"),
-            ("A", "B"), ("A", "y2"),
-            ("B", "x1"), ("B", "C"),
-            ("C", "x2"), ("C", "x3"),
-        ])
-        return T
-
-    @pytest.mark.parametrize("mode", ["bmg", "wbmg"])
-    def test_lrt_matches_hand_computed_expectation(self, hand_tree, mode):
-        reference_bmg = (bmg_from_network if mode == "bmg" else wbmg_from_network)(hand_tree)
-
-        lrt, report = compute_lrt(hand_tree, mode=mode)
-
-        # B and C must have been contracted -- the exact labels of the
-        # intermediate steps may vary (e.g. after contracting A-B, B's
-        # former child C is already a direct child of A, so the 2nd
-        # contraction shows up as (A, C) instead of (B, C) -- same final
-        # result, only the intermediate step's label changes). What
-        # matters is the NUMBER of contractions and the final structure
-        # (checked below).
-        assert len(report.contracted_edges) == 2
-        assert set(lrt.nodes) == {"r", "A", "y1", "y2", "x1", "x2", "x3"}
-        assert set(lrt.successors("A")) == {"x1", "x2", "x3", "y2"}
-        assert set(lrt.successors("r")) == {"A", "y1"}
-
-        compute = bmg_from_network if mode == "bmg" else wbmg_from_network
-        assert set(compute(lrt).edges()) == set(reference_bmg.edges())
-        assert is_least_resolved(lrt, mode=mode)
-
-    def test_contracting_one_more_edge_would_break_the_bmg(self, hand_tree):
-        # sanity check that r-A is NOT redundant (unlike A-B, B-C)
-        lrt, _ = compute_lrt(hand_tree, mode="bmg")
-        still_valid_result, applied = try_edit(
-            lrt, contract_edge, "r", "A",
-            still_valid=lambda before, after: set(bmg_from_network(before).edges())
-            == set(bmg_from_network(after).edges()),
-        )
-        assert applied is False
+def test_aho_build_consistent():
+    T = aho_build(["a", "b", "c", "d"], {("a", "b", "c"), ("a", "b", "d")})
+    assert {frozenset({"a", "b"}), frozenset("abcd")} <= cluster_set(T)
+    assert T.in_degree("rho") == 0
 
 
-class TestComputeLrtRealTrees:
-    @pytest.mark.parametrize("mode", ["bmg", "wbmg"])
-    def test_lrt_preserves_bmg_and_is_a_genuine_fixed_point(self, mode):
-        compute = bmg_from_network if mode == "bmg" else wbmg_from_network
-        for seed_species in [3, 5, 8]:
-            tree = create_gene_tree_n_leaves(
-                leaves=2 * seed_species, species=seed_species, spt_age=1.0
-            ).gene_tree
-            reference = compute(tree)
+def test_aho_build_inconsistent_and_trivial():
+    assert aho_build(["a", "b", "c"], {("a", "b", "c"), ("a", "c", "b")}) is None
+    assert aho_build(["a"], set()).number_of_nodes() == 1
 
-            lrt, report = compute_lrt(tree, mode=mode)
 
-            assert set(compute(lrt).edges()) == set(reference.edges())
-            assert is_least_resolved(lrt, mode=mode)
-            # still a genuine tree (in-degree <= 1 at every vertex)
-            assert all(lrt.in_degree(v) <= 1 for v in lrt.nodes)
+def test_lrt_hand_example():
+    T = colored_tree([("r", "x"), ("r", "y"), ("r", "a3"), ("x", "a1"), ("x", "b1"), ("y", "a2"), ("y", "b2")],
+                     {"a1": "a", "a2": "a", "a3": "a", "b1": "b", "b2": "b"})
+    G = bmg_from_network(T)
+    L = lrt_from_bmg(G)
+    assert same_phylogeny(L, T) and is_least_resolved(L, G)
+    assert all(L.nodes[v]["color"] == G.nodes[v]["color"] for v in G)
 
-    def test_lrt_is_never_larger_than_the_input_tree(self):
-        tree = create_gene_tree_n_leaves(leaves=12, species=6, spt_age=1.0).gene_tree
-        lrt, report = compute_lrt(tree, mode="bmg")
-        assert lrt.number_of_nodes() <= tree.number_of_nodes()
-        assert len(report.contracted_edges) == (
-            tree.number_of_nodes() - lrt.number_of_nodes()
-        )
 
-    def test_lrt_of_hybridized_tree_still_preserves_bmg(self):
-        # transform() inserts hybridization -- here we only check that
-        # compute_lrt (which only contracts single-parent internal
-        # edges) does nothing wrong when applied to a network that is no
-        # longer a pure tree (it should simply find no contractible edge
-        # at the multi-parent vertices and stop).
-        tree = create_gene_tree_n_leaves(leaves=10, species=5, spt_age=1.0).gene_tree
-        hybrid = transform(tree.copy(), 2)
-        reference = bmg_from_network(hybrid)
+def test_lrt_of_star(star_bmg):
+    L = lrt_from_bmg(star_bmg)
+    assert L.number_of_nodes() == 5 and L.out_degree("rho") == 4
 
-        reduced, report = compute_lrt(hybrid, mode="bmg")
 
-        assert set(bmg_from_network(reduced).edges()) == set(reference.edges())
+def test_non_bmg_rejected():
+    G = colored_graph({"a": 1, "a2": 1, "b": 2, "b2": 2}, [("a", "b"), ("b", "a"), ("b2", "a"), ("b2", "a2")])
+    with pytest.raises(ValueError):
+        lrt_from_bmg(G)
+
+
+def test_redundant_edges_and_contraction():
+    T = colored_tree([("r", "u"), ("r", "a2"), ("u", "w"), ("u", "a3"), ("w", "a1"), ("w", "b1")],
+                     {"a1": "A", "a2": "A", "a3": "A", "b1": "B"})
+    G = bmg_from_network(T)
+    assert redundant_edges(T, G) == [("r", "u")]
+    L = lrt_by_contraction(T, G)
+    assert "u" not in L and set(L.successors("r")) == {"w", "a2", "a3"}
+    assert edges(bmg_from_network(L)) == edges(G)
+    assert is_least_resolved(L, G) and not is_least_resolved(T, G)
+
+
+def test_contract_vertex():
+    T = nx.DiGraph([("r", "u"), ("u", "a"), ("u", "b"), ("r", "c")])
+    contract_vertex(T, "u")
+    assert set(T.successors("r")) == {"a", "b", "c"}
+
+
+def test_single_child_vertex_is_removed():
+    """non-phylogenetic input: the edge into a single-child vertex is always redundant"""
+    T = colored_tree([("top", "r"), ("r", "a"), ("r", "b")], {"a": 1, "b": 2})
+    L = lrt_by_contraction(T, bmg_from_network(T))
+    assert L.number_of_nodes() == 3
+    assert same_phylogeny(L, colored_tree([("root", "a"), ("root", "b")], {}))
+
+
+def test_three_constructions_agree(instances):
+    from asymmetree.analysis import lrt_from_tree
+    for d in instances:
+        L1 = lrt_from_bmg(d.bmg)
+        L2 = lrt_by_contraction(d.gene_tree, d.bmg)
+        assert same_phylogeny(L1, L2)
+        assert is_least_resolved(L1, d.bmg)
+        A = lrt_from_tree(d.original_gene_tree)
+        below = {}
+        for v in A.postorder():
+            below[v] = frozenset([v.label]) if not v.children else frozenset().union(*(below[c] for c in v.children))
+        assert cluster_set(L1) == set(below.values())

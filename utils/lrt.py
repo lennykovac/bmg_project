@@ -1,68 +1,170 @@
-from dataclasses import dataclass, field
-from typing import Hashable
+"""
+Task 2.2(a): least resolved tree (LRT) T* of a tree-BMG (G, sigma).
+
+Two independent constructions:
+
+1. ``lrt_from_bmg(G)``.
+   Corrigendum, Def. 11: informative triples
+       R(G, sigma) = { ab|b' : sigma(a) != sigma(b) = sigma(b'),
+                               ab ∈ E(G), ab' ∉ E(G) }.
+   Theorem 15: (G, sigma) is a BMG  <=>  G(Aho(R(G, sigma)), sigma) = (G, sigma),
+   and then Aho(R(G, sigma)) is the UNIQUE least resolved tree.
+   Aho(R) is computed with BUILD (Aho et al. 1981; Sec. 3.4 of the paper).
+
+2. ``lrt_by_contraction(T, G)`` -- *from any explaining tree* (e.g. the
+   AsymmeTree gene tree). Theorem 13 / Cor. 2: T* is obtained by contracting
+   all redundant edges in arbitrary order. Redundant edges are characterised
+   by Lemma 21 (corrigendum):
+       inner edge uv (v ≺ u) is redundant  <=>  there is NO arc ab ∈ E(G) with
+       lca_T(a, b) = v and sigma(b) ∈ sigma(L(T(u)) \\ L(T(v))).
+"""
+
+from itertools import count
 
 import networkx as nx
 
-from utils.graph_editing import contract_edge, try_edit, bmg_is_same
+from utils.graph_utils import bmg_from_network, clusters
 
 
-@dataclass
-class LrtReport:
-    mode: str = "bmg"
-    contracted_edges: list = field(default_factory=list)  # [(u, v), ...]
-    rounds_run: int = 0
+# ---------------------------------------------------------------------------
+# informative triples + BUILD
+# ---------------------------------------------------------------------------
+
+def informative_triples(G: nx.DiGraph) -> set:
+    """R(G, sigma) as a set of tuples (a, b, c) meaning the triple ab|c."""
+    color = nx.get_node_attributes(G, "color")
+    by_color: dict = {}
+    for v, c in color.items():
+        by_color.setdefault(c, set()).add(v)
+    R = set()
+    for a in G.nodes:
+        out = set(G.successors(a))
+        for s, vertexes_s_color in by_color.items():
+            if s == color[a]:
+                continue
+            # vertexes that are not of the same color as a but are ist successors
+            hits = out & vertexes_s_color
+            # vertexes that are not of the same color as a minus ist successors
+            misses = vertexes_s_color - out
+            for b in hits:
+                for b2 in misses:
+                    R.add((a, b, b2))
+    return R
 
 
-def _internal_edges(tree: nx.DiGraph):
-    """
-    Returns Edges (u, v) where v is NOT a leaf -- only these can be contracted
-    """
+def aho_build(leaves, triples) -> nx.DiGraph | None:
+    """BUILD: returns Aho(R) as nx.DiGraph (leaves = given leaves) or None if R
+    is inconsistent. Inner vertices are named 'rho' (root), 'v1', 'v2', ..."""
+    leaves = list(leaves)
+    T = nx.DiGraph()
+    T.add_nodes_from(leaves)
+    if len(leaves) == 1:
+        return T
+    ids = count(1)
 
-    return [(u, v) for u, v in tree.edges if tree.out_degree(v) > 0]
+    def recurse(node, L, R):
+        # Aho graph [R, L]: edge a-b for every ab|c with a, b, c ∈ L
+        aho = nx.Graph()
+        aho.add_nodes_from(L)
+        aho.add_edges_from((a, b) for a, b, _ in R)
+        comps = [frozenset(c) for c in nx.connected_components(aho)]
+        if len(comps) == 1:
+            return False  # connected Aho graph with |L| > 1 -> inconsistent
+        for C in comps:
+            if len(C) == 1:
+                T.add_edge(node, next(iter(C)))
+                continue
+            child = f"v{next(ids)}"
+            T.add_edge(node, child)
+            R_C = [t for t in R if t[0] in C and t[1] in C and t[2] in C]
+            if not recurse(child, C, R_C):
+                return False
+        return True
 
-
-def compute_lrt(tree: nx.DiGraph, mode: str = "bmg", max_rounds: int = 200) -> tuple:
-    """
-    Repeatedly contracts any redundant internal edge
-    until a fixed point is reached. 
-
-    Every attempt is guarded by `try_edit(..., still_valid=...)`
-    a contraction that would change the (weak) BMG is never accepted.
-
-    Returns (T_star, LrtReport). T_star is a NEW tree (the input `tree`
-    is never mutated, because of how `try_edit` works).
-    """
-
-    still_valid = lambda b, a: bmg_is_same(b, a, mode=mode)
-    report = LrtReport(mode=mode)
-
-    for round_i in range(max_rounds):
-        report.rounds_run = round_i + 1
-        progressed = False
-        for u, v in _internal_edges(tree):
-            result, applied = try_edit(tree, contract_edge, u, v, still_valid=still_valid)
-            if applied:
-                tree = result
-                report.contracted_edges.append((u, v))
-                progressed = True
-                break  # topology changed, restart the edge scan
-        if not progressed:
-            break
-
-    return tree, report
+    Lset = frozenset(leaves)
+    return T if recurse("rho", Lset, list(triples)) else None
 
 
-def is_least_resolved(tree: nx.DiGraph, mode: str = "bmg") -> bool:
-    """
-    Directly checks Def. 6: no remaining internal edge can be
-    contracted without changing the (weak) BMG. Used in the tests to
-    confirm that compute_lrt really reached a genuine fixed point (not
-    just stopped due to max_rounds).
-    """
+def lrt_from_bmg(G: nx.DiGraph, verify: bool = True) -> nx.DiGraph:
+    """Unique least resolved tree of a (tree-)BMG via Theorem 15.
 
-    still_valid = lambda b, a: bmg_is_same(b, a, mode=mode)
-    for u, v in _internal_edges(tree):
-        _, applied = try_edit(tree, contract_edge, u, v, still_valid=still_valid)
-        if applied:
-            return False
-    return True
+    Raises ValueError if (G, sigma) is not a BMG (R inconsistent, or
+    G(Aho(R)) != G)."""
+    T = aho_build(G.nodes, informative_triples(G))
+    if T is None:
+        raise ValueError("informative triples are inconsistent: G is not a BMG")
+    for v in T.nodes:
+        T.nodes[v]["color"] = G.nodes[v]["color"] if v in G else None
+    if verify:
+        H = bmg_from_network(T)
+        if set(H.edges) != set(G.edges):
+            raise ValueError("G(Aho(R)) != G: G is not a BMG (Thm. 15)")
+    return T
+
+
+# ---------------------------------------------------------------------------
+# redundant edges (Lemma 21) and contraction
+# ---------------------------------------------------------------------------
+
+def _tree_lca(T: nx.DiGraph, parent: dict, depth: dict, a, b):
+    while depth[a] > depth[b]:
+        a = parent[a]
+    while depth[b] > depth[a]:
+        b = parent[b]
+    while a != b:
+        a, b = parent[a], parent[b]
+    if a==b:
+        return a
+    raise ValueError
+
+
+def redundant_edges(T: nx.DiGraph, G: nx.DiGraph) -> list:
+    """All redundant edges (u, v) of a tree T explaining G (Lemma 21)."""
+    root = next(v for v in T if T.in_degree(v) == 0)
+    parent = {v: next(iter(T.predecessors(v))) for v in T if v != root}
+    depth = nx.single_source_shortest_path_length(T, root)
+    cl = clusters(T)
+    color = {x: G.nodes[x]["color"] for x in G.nodes}
+
+    # colors of arcs ab grouped by lca_T(a, b)
+    arc_colors_at: dict = {}
+    for a, b in G.edges:
+        arc_colors_at.setdefault(_tree_lca(T, parent, depth, a, b), set()).add(color[b])
+
+    red = []
+    for u, v in T.edges:
+        if T.out_degree(v) == 0:
+            continue  # outer edge: never redundant
+        rest_colors = {color[x] for x in cl[u] - cl[v]}
+        if not (arc_colors_at.get(v, set()) & rest_colors):
+            red.append((u, v))
+    return red
+
+
+def contract_vertex(T: nx.DiGraph, v) -> None:
+    """Contract the edge (parent(v), v) in place (v must have in-degree 1)."""
+    (u,) = T.predecessors(v)
+    children = list(T.successors(v))
+    T.remove_node(v)
+    T.add_edges_from((u, c) for c in children)
+
+
+def lrt_by_contraction(T: nx.DiGraph, G: nx.DiGraph) -> nx.DiGraph:
+    """Contract all redundant edges of T (Thm. 13: order is irrelevant)."""
+    T = T.copy()
+    for _, v in redundant_edges(T, G):
+        contract_vertex(T, v)  # identified by lower endpoint -> order-independent
+
+    # suppress a possible single-child root (non-phylogenetic input)
+    root = next(v for v in T if T.in_degree(v) == 0)
+    while T.out_degree(root) == 1:
+        (c,) = T.successors(root)
+        T.remove_node(root)
+        root = c
+    return T
+
+
+def is_least_resolved(T: nx.DiGraph, G: nx.DiGraph) -> bool:
+    """T explains G and has no redundant edge (Def. 6 + Lemma 21)."""
+    H = bmg_from_network(T)
+    return set(H.edges) == set(G.edges) and not redundant_edges(T, G)
