@@ -1,5 +1,6 @@
 from itertools import permutations
 import networkx as nx
+import pytest
 from utils.graph_utils import (
     bmg_from_network,
     transform,
@@ -12,7 +13,6 @@ from utils.bic_cherry import (
     bic_cherry,
     restricted_bic_cherry_extension,
 )
-import pytest
 
 
 @pytest.fixture

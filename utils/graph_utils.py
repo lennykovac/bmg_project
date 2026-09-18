@@ -95,10 +95,28 @@ def show_graph(di_graph: nx.DiGraph):
     Shows u a neat graph view of the DAG
     """
     nt = Network("1000px", "1000px", directed=True)
+    # pyvis reads "color" as a CSS color, so work on a copy to keep the original attribute intact
+    di_graph = di_graph.copy()
+
+    palette = ["#e74c3c", "#3498db"]
+    distinct_colors = sorted(
+        {c for c in nx.get_node_attributes(di_graph, "color").values() if c is not None},
+        key=str,
+    )
+    if len(distinct_colors) > len(palette):
+        raise ValueError(
+            f"show_graph supports at most {len(palette)} colors, got {len(distinct_colors)}"
+        )
+    color_map = dict(zip(distinct_colors, palette))
 
     for node, node_data in di_graph.nodes(data=True):
         node_data["label"] = str(node)
+        color_value = node_data.pop("color", None)
+        if color_value is not None:
+            node_data["color"] = color_map[color_value]
         title_parts = []
+        if color_value is not None:
+            title_parts.append(f"color: {color_value}")
         if "reconc" in node_data:
             reconc_value = node_data["reconc"]
             title_parts.append(f"reconc: {reconc_value}")
@@ -151,10 +169,7 @@ def add_hybrid_node(
     """
     # after the insertion the only parent of donor is donor_edge[0] and the
     # only child of hybrid is hybrid_edge[1], so the new donor -> hybrid edge
-    # closes a cycle exactly if hybrid can already reach donor. Subdividing an
-    # edge keeps reachability
-    if nx.has_path(G, hybrid_edge[1], donor_edge[0]):
-        return False
+    # closes a cycle exactly if hybrid can already reach donor. 
     # validate everything up front, the two inserts below run one after the
     # other, so a failing second insert would leave the donor behind
     for edge in (donor_edge, hybrid_edge):
