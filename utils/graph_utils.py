@@ -239,6 +239,10 @@ def lca_dict_from_network(
     return lca_dict
 
 
+
+
+
+
 def bmg_from_network(
     network: nx.DiGraph,
 ) -> nx.DiGraph:
@@ -288,6 +292,22 @@ def bmg_from_network(
         bmg.add_edge(x, y)
 
     return bmg
+
+
+def print_lca_dict(network: nx.DiGraph):
+    leaves = [node for node in network.nodes if network.out_degree(node) == 0]
+
+    reach = {
+        n: nx.descendants(network, n) for n in network.nodes
+    }
+
+    lca_dict = lca_dict_from_network(network, reach, leaves)
+    print(f"{'(x, y)'} | {'LCA'}")
+    print("-" * 40)
+
+    for (x, y), lcas in lca_dict.items():
+        lca_str = ", ".join(map(str, sorted(lcas)))
+        print(f"({x}, {y}): | {lca_str}")
 
 
 def wbmg_from_network(

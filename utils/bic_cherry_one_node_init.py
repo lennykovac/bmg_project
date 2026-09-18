@@ -14,8 +14,16 @@ def bic_cherry(bmg: nx.DiGraph):
     pairs = []
     colors = list(color_groups.keys())
 
+    bmg_edges = set(bmg.edges())
+
     for x, y in combinations(colors, 2):
-        pairs.extend(product(color_groups[x], color_groups[y]))
+        # Nur hinzufügen, wenn mindestens eine Kante in bmg existiert
+        pairs.extend([
+            (u, v) for u, v in product(color_groups[x], color_groups[y])
+            if (u, v) in bmg_edges or (v, u) in bmg_edges
+        ])
+
+        #pairs.extend(product(color_groups[x], color_groups[y]))
 
     network.add_node("R", color=None)
 
@@ -142,7 +150,8 @@ def restricted_bic_cherry_more_extensions(bmg):
                 break
 
         u, v = sorted([x, y], key=lambda item: str(item))
-        parent_node = f"p:{u}|{v}"
+        first_parent = f"p:{u}|{v}"
+        parent_node = first_parent
 
 
         curr_x = x
@@ -173,10 +182,14 @@ def restricted_bic_cherry_more_extensions(bmg):
 
             w_candidates = [
                 n for n, color in bmg.nodes(data="color")
-                if n != curr_x and color == bmg.nodes[curr_x]["color"] and (curr_z, n) in bmg_edges
+                if n != curr_x and color == bmg.nodes[curr_x]["color"]
+                   and (curr_z, n) in bmg_edges and (y, n) in bmg_edges
             ]
 
 
+
+            if len(w_candidates) == 0:
+                break
 
             w = w_candidates[0]
             for w_search in w_candidates:
@@ -185,9 +198,26 @@ def restricted_bic_cherry_more_extensions(bmg):
                     break
 
 
+
+
+            color_y = bmg.nodes[y]["color"]
+            color_w = bmg.nodes[w]["color"]
+
+            '''
+            if color_y != color_w and (y,w) not in bmg_edges:
+                r_node = f"r:{y}|{w}"
+                network.add_node(r_node, color=None)
+                network.add_edge("R", r_node)
+                network.add_edge(r_node, first_parent)
+                network.add_edge(r_node, w)
+                network.add_edge(r_node, y)
+            '''
+
             parent_node = q_node
             curr_x = curr_z
             curr_z = w
             depth += 1
+
+
 
     return network, pairs, extend_pairs

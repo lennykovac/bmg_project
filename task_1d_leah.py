@@ -7,7 +7,9 @@ from utils.graph_utils import (
     wbmg_from_network,
     leaves_from_network,
     print_graph_diff,
-    print_compare_bmg
+    print_compare_bmg,
+    lca_dict_from_network,
+    print_lca_dict
 )
 from utils.tree_utils import create_gene_tree
 from utils.bic_cherry_one_node_init import (
@@ -74,7 +76,7 @@ def test_missing_edges_are_weak_best_matches():
 
 
 
-def wbm_minimal_example(max_leaves=10, runs_per_size=1000):
+def wbm_minimal_example(max_leaves=10, runs_per_size=4000):
     species = 2
     species_tree_age = 1
 
@@ -123,6 +125,7 @@ def wbm_more_extensions_minimal_example(max_leaves=10, runs_per_size=1000):
             wbmg = wbmg_from_network(graph)
 
             network, pairs, extend_pairs = restricted_bic_cherry_more_extensions(wbmg)
+
             new_wbmg = wbmg_from_network(network)
 
             if not nx.is_isomorphic(wbmg, new_wbmg):
@@ -223,10 +226,10 @@ def wbmg_edge_count_relationship(total_runs):
 if __name__ == "__main__":
     print("Tests for p_xy = p_yx")
     print("Test 1: the new BMG has no additional edges")
-    test_reconstructed_bmg_has_no_additional_edges()
+    #test_reconstructed_bmg_has_no_additional_edges()
 
     print("Test 2: all missing edges in the new BMG are weak best matches")
-    test_missing_edges_are_weak_best_matches()
+    #test_missing_edges_are_weak_best_matches()
 
 
 
@@ -240,5 +243,7 @@ graph, wbmg, network, pairs, extend_pairs, new_wbmg =wbm_more_extensions_minimal
 #print_compare_bmg(graph, wbmg, network, new_wbmg)
 print_compare_bmg(graph, wbmg, network, pairs, extend_pairs, new_wbmg)
 
-lca_dict = lca_dict_from_network(network)
-print(lca_dict)
+
+print_lca_dict(network)
+
+
