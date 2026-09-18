@@ -12,47 +12,53 @@ import networkx as nx
 import numpy as np
 from tralda.datastructures import Tree
 
+from utils.graph_utils import bmg_from_network
+from asymmetree.analysis import bmg_from_tree
+
 
 class GeneSpeciesTrees(NamedTuple):
-    """
-    Pair of simulated trees as a names tuple to make unpacking easier.
-    """
-
     gene_tree: nx.DiGraph
     species_tree: nx.DiGraph
-    original_gene_tree: Tree  # needed for testing with Asymmetree methods
+    bmg: nx.DiGraph
+    original_gene_tree: Tree  # AsymmeTree object (for asymmetree.analysis cross-checks)
 
 
-def _to_clean_digraph(tree: Tree) -> nx.DiGraph:
-    """Convert an asymmetree Tree into a clean networkx DiGraph.
+def _plain(value):
+    """numpy scalars / tuples -> JSON-friendly python values."""
+    if value is None:
+        return None
+    if hasattr(value, "item"):
+        return value.item()
+    if isinstance(value, tuple):
+        return str(value)
+    return value
 
-    - relabels nodes to integers (the original id is kept in ``asym_id``)
-    - normalises attribute types: ``None`` -> ``""`` and ``np.float64`` -> ``float``
-    """
-    di_graph, _root_id = tree.to_nx()  # transform Tree() to networkx DiGraph
 
-    # save the old asymmetree ids onto each node before relabelling
-    for node in di_graph.nodes():
-        di_graph.nodes[node]["asym_id"] = str(node)
+def tree_to_digraph(tree: Tree) -> nx.DiGraph:
+    """AsymmeTree ``Tree`` -> ``nx.DiGraph`` keyed by node label.
 
-    # convert to simpler integer node labels
-    di_graph = nx.convert_node_labels_to_integers(di_graph)
+    Leaves get ``color = reconc`` (species), inner vertices ``color = None``."""
+    D = nx.DiGraph()
+    for v in tree.preorder():
+        is_leaf = not v.children
+        D.add_node(
+            v.label,
+            event=_plain(getattr(v, "event", None)),
+            reconc=_plain(getattr(v, "reconc", None)),
+            dist=_plain(getattr(v, "dist", None)),
+            color=_plain(getattr(v, "reconc", None)) if is_leaf else None,
+        )
+        if v.parent is not None:
+            D.add_edge(v.parent.label, v.label)
+    return D
 
-    # normalise attribute datatypes to usable Python types
-    for _node_id, attrs in di_graph.nodes(data=True):
-        for key, value in attrs.items():
-            if value is None:
-                attrs[key] = ""
-            elif isinstance(value, np.float64):
-                # looks hacky but converts no.float to python float data-type
-                attrs[key] = value.item()
 
-    # rename all "reconc" to "color" for now
-    for node in di_graph.nodes():
-        if "reconc" in di_graph.nodes[node]:
-            di_graph.nodes[node]["color"] = di_graph.nodes[node].pop("reconc")
-
-    return di_graph
+def _clean_bmg(bmg: nx.DiGraph) -> nx.DiGraph:
+    G = nx.DiGraph()
+    for v, data in bmg.nodes(data=True):
+        G.add_node(v, color=_plain(data["color"]))
+    G.add_edges_from(bmg.edges())
+    return G
 
 
 def create_gene_tree_n_leaves(
@@ -63,67 +69,46 @@ def create_gene_tree_n_leaves(
     hgt_rate: float = 0.1,
     max_attempts: int = 7,
 ) -> GeneSpeciesTrees:
+    """Simulate a dated gene tree with (approximately) ``leaves`` surviving genes.
+
+    The duplication rate is steered up/down between attempts; the attempt with
+    the closest leaf count is returned. The BMG is computed with AsymmeTree and
+    cross-checked against ``bmg_from_network`` (they must be equal).
     """
-    Simulate a dated gene tree with a given number of surviving leaves.
-
-    asymmetree has no leaf count parameter, so the gene tree is re-simulated
-    along one fixed species tree while the duplication rate is nudged up or
-    down depending on whether the last attempt had too few or too many leaves.
-    Loss branches are pruned, hence the leaf count refers to surviving genes.
-    I took the default parametrs from the documentation. They can be adjusted.
-
-    Parameters:
-        leaves: wanted number of leaves (surviving genes) in the gene tree,
-            has to be at least ``species`` since no species goes extinct
-        species: number of species in the species tree
-        spt_age: age (depth) of the species tree
-        loss_rate: loss rate of the gene tree simulation
-        hgt_rate: horizontal gene transfer rate of the gene tree simulation
-        max_attempts: number of simulations before giving up on an exact hit
-
-    Returns:
-        GeneSpeciesTrees: (gene_tree, species_tree) as networkx DiGraphs. If no
-        attempt hits the wanted leaf count, the closest one is returned.
-    """
-    # argument validation
     if species < 2:
         raise ValueError("species has to be at least 2")
     if leaves < species:
-        # every species keeps at least one gene (prohibit_extinction per species)
         raise ValueError(f"leaves ({leaves}) has to be at least species ({species})")
 
-    # 0. simulate the species tree once and reuse it for every attempt
     species_tree = te.species_tree_n_age(species, age=spt_age)
 
     dupl_rate = 1.0
     best_tree, best_error = None, None
 
-    for _attempt in range(max_attempts):
-        # 1. simulate a gene tree and drop the branches leading to losses only, took it from asymmetry docs
-        gene_tree = te.prune_losses(
-            te.dated_gene_tree(
-                species_tree,
-                dupl_rate=dupl_rate,
-                loss_rate=loss_rate,
-                hgt_rate=hgt_rate,
-            )
-        )
-        leaf_count = sum(1 for _leaf in gene_tree.leaves())
+    for _ in range(max_attempts):
+        gene_tree = te.prune_losses(te.dated_gene_tree(species_tree, dupl_rate=dupl_rate, loss_rate=loss_rate, hgt_rate=hgt_rate))
 
-        # 2. keep the attempt that comes closest to the wanted leaf count
+        leaf_count = sum(1 for _ in gene_tree.leaves())
         error = abs(leaf_count - leaves)
+
         if best_error is None or error < best_error:
             best_tree, best_error = gene_tree, error
         if error == 0:
             break
-
         # 3. more duplications give more leaves, so steer the rate accordingly (by a third)
         dupl_rate *= 1.3 if leaf_count < leaves else 1 / 1.3
-        # 3.1 keep it in a reasonable range (>0.01 and < 25.0)
         dupl_rate = min(max(dupl_rate, 0.01), 25.0)
 
+    gene_nx = tree_to_digraph(best_tree)
+    bmg = _clean_bmg(bmg_from_tree(best_tree))
+
+    ours = bmg_from_network(gene_nx)
+    if set(ours.nodes) != set(bmg.nodes) or set(ours.edges) != set(bmg.edges):
+        raise AssertionError("AsymmeTree BMG and bmg_from_network(gene_tree) differ")
+
     return GeneSpeciesTrees(
-        gene_tree=_to_clean_digraph(best_tree),
-        species_tree=_to_clean_digraph(species_tree),
-        original_gene_tree=best_tree,  # the pruned tree the DiGraph was built from
+        gene_tree=gene_nx,
+        species_tree=tree_to_digraph(species_tree),
+        bmg=bmg,
+        original_gene_tree=best_tree,
     )
