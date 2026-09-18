@@ -15,3 +15,6 @@ dev = [
 ]
 [tool.pytest.ini_options]
 pythonpath = ["."]
+markers = [
+    "exhaustive: compute-intensive test, skipped by default (run with --exhaustive)",
+]
