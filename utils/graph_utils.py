@@ -382,3 +382,39 @@ def wbmg_from_network(
         wbmg.add_edge(x, y)
 
     return wbmg
+
+# ---------------------------------------------------------------------------
+# Comparing phylogenies
+# ---------------------------------------------------------------------------
+
+def clusters(network: nx.DiGraph) -> dict:
+    """ leaves of the subtree"""
+    """vertex -> frozenset of leaf descendants (cluster C(v))."""
+    leaves = {v for v in network.nodes if network.out_degree(v) == 0}
+    out = {}
+    for v in reversed(list(nx.topological_sort(network))):
+        if v in leaves:
+            out[v] = frozenset([v])
+        else:
+            out[v] = frozenset().union(*(out[c] for c in network.successors(v)))
+    return out
+
+
+def is_phylogenetic_tree(network: nx.DiGraph) -> bool:
+    """Rooted tree (single root, in-degree <= 1) and no inner vertex with one child."""
+    if network.number_of_nodes() == 0 or not nx.is_directed_acyclic_graph(network):
+        return False
+    roots = [v for v in network if network.in_degree(v) == 0]
+    if len(roots) != 1 or any(network.in_degree(v) > 1 for v in network):
+        return False
+    return all(network.out_degree(v) != 1 for v in network)
+
+
+def same_phylogeny(n1: nx.DiGraph, n2: nx.DiGraph) -> bool:
+    """Leaf-labelled isomorphism of two phylogenetic TREES.
+
+    A phylogenetic tree is uniquely determined by its hierarchy of clusters
+    (Semple & Steel 2003, Prop. 2.1), so comparing cluster sets suffices."""
+    if not (is_phylogenetic_tree(n1) and is_phylogenetic_tree(n2)):
+        return False
+    return set(clusters(n1).values()) == set(clusters(n2).values())
