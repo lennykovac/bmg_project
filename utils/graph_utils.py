@@ -384,6 +384,20 @@ def wbmg_from_network(
     return wbmg
 
 # ---------------------------------------------------------------------------
+# Graph properties
+# ---------------------------------------------------------------------------
+
+def check_color_sink_free(G: nx.DiGraph) -> bool:
+    """Every vertex has an out-neighbor of every other color."""
+    colors = set(nx.get_node_attributes(G, "color").values())
+    for x in G.nodes:
+        own = G.nodes[x]["color"]
+        seen = {G.nodes[y]["color"] for y in G.successors(x)}
+        if seen != colors - {own}:
+            return False
+    return True
+
+# ---------------------------------------------------------------------------
 # Comparing phylogenies
 # ---------------------------------------------------------------------------
 
