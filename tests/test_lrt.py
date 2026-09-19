@@ -83,10 +83,10 @@ def test_single_child_vertex_is_removed():
 def test_three_constructions_agree(instances):
     from asymmetree.analysis import lrt_from_tree
     for d in instances:
-        L1 = lrt_from_bmg(d.bmg)
-        L2 = lrt_by_contraction(d.gene_tree, d.bmg)
+        L1 = lrt_from_bmg(bmg_from_network(d.gene_tree))
+        L2 = lrt_by_contraction(d.gene_tree, bmg_from_network(d.gene_tree))
         assert same_phylogeny(L1, L2)
-        assert is_least_resolved(L1, d.bmg)
+        assert is_least_resolved(L1, bmg_from_network(d.gene_tree))
         A = lrt_from_tree(d.original_gene_tree)
         below = {}
         for v in A.postorder():

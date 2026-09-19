@@ -12,7 +12,7 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from utils.graph_utils import leaves_from_network
+from utils.graph_utils import bmg_from_network, leaves_from_network
 from utils.tree_utils import create_gene_tree_n_leaves
 
 # the default (7) is tuned for speed, the tests want the rate steering to settle
@@ -171,4 +171,4 @@ class TestAttributeCleaning:
         gene_tree = trees.gene_tree
         assert all(isinstance(n, int) for n in gene_tree)
         assert len(set(gene_tree.nodes)) == gene_tree.number_of_nodes()
-        assert set(trees.bmg.nodes) == set(leaves_from_network(gene_tree))
+        assert set(bmg_from_network(trees.gene_tree).nodes) == set(leaves_from_network(gene_tree))

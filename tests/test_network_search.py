@@ -73,15 +73,15 @@ def test_report_fields(star_bmg):
 
 def test_search_result_always_explains_g(small_instances):
     for d in small_instances:
-        T = lrt_from_bmg(d.bmg)
+        T = lrt_from_bmg(bmg_from_network(d.gene_tree))
         for guided in (True, False):
-            M, rep = edit_search(bic_cherry_extension(d.bmg), T, guided=guided, beam_width=2)
-            assert edges(bmg_from_network(M)) == edges(d.bmg)
+            M, rep = edit_search(bic_cherry_extension(bmg_from_network(d.gene_tree)), T, guided=guided, beam_width=2)
+            assert edges(bmg_from_network(M)) == edges(bmg_from_network(d.gene_tree))
         assert rep.success
 
 
 def test_reduce_to_tree_keeps_bmg(small_instances):
     for d in small_instances:
-        M, accepted = reduce_to_tree(bic_cherry_extension(d.bmg))
+        M, accepted = reduce_to_tree(bic_cherry_extension(bmg_from_network(d.gene_tree)))
         assert accepted >= 0
-        assert edges(bmg_from_network(M)) == edges(d.bmg)
+        assert edges(bmg_from_network(M)) == edges(bmg_from_network(d.gene_tree))

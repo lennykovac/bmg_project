@@ -10,7 +10,7 @@ from utils.graph_editing import (
     pull_up_to_common_ancestor, remove_dead_vertex, remove_one_to_one_vertex, remove_shortcut_edge,
     remove_single_child_vertex, remove_twin_vertex, transfer_edge, try_edit,
 )
-from utils.graph_utils import transform
+from utils.graph_utils import transform, bmg_from_network
 
 
 @pytest.fixture
@@ -132,7 +132,7 @@ def test_normalize_on_bic_network(example_tree):
 
 def test_invariant_edits_preserve_bmg_and_wbmg(instances):
     for d in instances[:15]:
-        for N in (bic_cherry_extension(d.bmg), transform(d.gene_tree, 4)):
+        for N in (bic_cherry_extension(bmg_from_network(d.gene_tree)), transform(d.gene_tree, 4)):
             leaves = {v for v in N if N.out_degree(v) == 0}
             gb, gw = make_guard(N, "bmg"), make_guard(N, "wbmg")
             M = N.copy()

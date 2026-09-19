@@ -6,6 +6,7 @@ import pytest
 
 from tests.helpers import colored_graph, colored_tree
 from utils.tree_utils import create_gene_tree_n_leaves
+from utils.graph_utils import bmg_from_network
 
 
 @pytest.fixture
@@ -35,4 +36,4 @@ def instances():
 
 @pytest.fixture(scope="session")
 def small_instances(instances):
-    return [d for d in instances if d.bmg.number_of_nodes() <= 6][:5]
+    return [d for d in instances if bmg_from_network(d.gene_tree).number_of_nodes() <= 6][:5]

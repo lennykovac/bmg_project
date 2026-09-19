@@ -37,17 +37,17 @@ def test_invalid_arguments(leaves, species):
 def test_gene_tree_and_bmg_share_leaves(instances):
     for d in instances:
         leaves = {v for v in d.gene_tree if d.gene_tree.out_degree(v) == 0}
-        assert leaves == set(d.bmg.nodes)
-        assert edges(bmg_from_network(d.gene_tree)) == edges(d.bmg)
+        assert leaves == set(bmg_from_network(d.gene_tree).nodes)
+        assert edges(bmg_from_network(d.gene_tree)) == edges(bmg_from_network(d.gene_tree))
 
 
 def test_simulated_objects_are_valid(instances):
     for d in instances:
         assert is_phylogenetic_tree(d.gene_tree)
-        assert check_color_sink_free(d.bmg)
-        assert all(d.bmg.nodes[u]["color"] != d.bmg.nodes[v]["color"] for u, v in d.bmg.edges)
+        assert check_color_sink_free(bmg_from_network(d.gene_tree))
+        assert all(bmg_from_network(d.gene_tree).nodes[u]["color"] != bmg_from_network(d.gene_tree).nodes[v]["color"] for u, v in bmg_from_network(d.gene_tree).edges)
         species = {v for v in d.species_tree if d.species_tree.out_degree(v) == 0}
-        assert set(nx_colors(d.bmg)) <= species
+        assert set(nx_colors(bmg_from_network(d.gene_tree))) <= species
 
 
 def nx_colors(G):
@@ -56,4 +56,4 @@ def nx_colors(G):
 
 def test_leaf_count_is_close_to_request():
     d = create_gene_tree_n_leaves(8, 3, max_attempts=15)
-    assert abs(d.bmg.number_of_nodes() - 8) <= 3
+    assert abs(bmg_from_network(d.gene_tree).number_of_nodes() - 8) <= 3
