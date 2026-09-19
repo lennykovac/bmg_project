@@ -101,9 +101,9 @@ def create_gene_tree_n_leaves(
 
     gene_nx = tree_to_digraph(best_tree)
     bmg = _clean_bmg(bmg_from_tree(best_tree))
+    our_bmg = bmg_from_network(gene_nx)
 
-    ours = bmg_from_network(gene_nx)
-    if set(ours.nodes) != set(bmg.nodes) or set(ours.edges) != set(bmg.edges):
+    if set(our_bmg.nodes) != set(bmg.nodes) or set(our_bmg.edges) != set(bmg.edges):
         raise AssertionError("AsymmeTree BMG and bmg_from_network(gene_tree) differ")
 
     return GeneSpeciesTrees(

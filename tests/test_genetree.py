@@ -6,6 +6,8 @@ instead of demanding an exact hit. The structural assertions below are
 deterministic and are where the real checking happens.
 """
 
+import json
+
 import networkx as nx
 import numpy as np
 import pytest
@@ -117,9 +119,9 @@ class TestTreeStructure:
 class TestColors:
     def test_every_gene_leaf_is_reconciled_to_a_species_leaf(self, trees):
         gene_tree, species_tree = trees.gene_tree, trees.species_tree
-        species_labels = {
-            species_tree.nodes[n]["label"] for n in leaves_from_network(species_tree)
-        }
+        # the DiGraph is KEYED by the asymmetree label, there is no "label"
+        # attribute -- the species leaves are their own ids
+        species_labels = set(leaves_from_network(species_tree))
         leaf_colors = {
             gene_tree.nodes[n]["color"] for n in leaves_from_network(gene_tree)
         }
@@ -127,8 +129,8 @@ class TestColors:
         assert leaf_colors == species_labels
 
     def test_leaf_colors_are_single_species_not_edges(self, trees):
-        # inner vertices may sit on a species edge and carry a tuple,
-        # leaves always belong to one species
+        # inner vertices may sit on a species edge (reconc is a stringified
+        # tuple there and color is None), leaves always belong to one species
         gene_tree = trees.gene_tree
         assert all(
             isinstance(gene_tree.nodes[n]["color"], int)
@@ -138,15 +140,35 @@ class TestColors:
 
 class TestAttributeCleaning:
     def test_attributes_are_json_friendly(self, trees):
+        # None is a legal value (inner vertices have color None, the root has
+        # no event); what has to be gone are numpy scalars and tuples
         for graph in (trees.gene_tree, trees.species_tree):
+            assert json.dumps(dict(graph.nodes(data=True)))
             for _node, attrs in graph.nodes(data=True):
                 for key, value in attrs.items():
-                    assert value is not None, key
-                    assert not isinstance(value, np.float64), key
+                    assert not isinstance(value, (np.generic, tuple)), key
 
-    def test_reconc_was_renamed_to_color(self, trees):
-        assert all("reconc" not in attrs for _n, attrs in trees.gene_tree.nodes(data=True))
-        assert any("color" in attrs for _n, attrs in trees.gene_tree.nodes(data=True))
+    def test_color_is_derived_from_reconc_which_is_kept(self, trees):
+        # reconc is NOT renamed -- color is an extra attribute: the species
+        # label on leaves, None on inner vertices (their reconc may be a
+        # species EDGE, which is not a color)
+        gene_tree = trees.gene_tree
+        assert all("reconc" in attrs for _n, attrs in gene_tree.nodes(data=True))
+        assert all(
+            gene_tree.nodes[n]["color"] == gene_tree.nodes[n]["reconc"]
+            for n in leaves_from_network(gene_tree)
+        )
+        assert all(
+            gene_tree.nodes[n]["color"] is None
+            for n in gene_tree
+            if gene_tree.out_degree(n) > 0
+        )
 
-    def test_nodes_are_integer_labelled(self, trees):
-        assert set(trees.gene_tree.nodes) == set(range(trees.gene_tree.number_of_nodes()))
+    def test_nodes_are_keyed_by_the_asymmetree_label(self, trees):
+        # labels are unique integers but NOT renumbered to 0..n-1 (pruned
+        # branches leave gaps); keying by the label is what makes the gene
+        # tree leaves and the BMG vertices the same genes
+        gene_tree = trees.gene_tree
+        assert all(isinstance(n, int) for n in gene_tree)
+        assert len(set(gene_tree.nodes)) == gene_tree.number_of_nodes()
+        assert set(trees.bmg.nodes) == set(leaves_from_network(gene_tree))
