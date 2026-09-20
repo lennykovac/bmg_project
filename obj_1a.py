@@ -48,24 +48,26 @@ def main():
     species = 10
     leaves = 20
     species_tree_age = 1
-    # we know bmg -> wbmg. But not wbmg->bmg. So if also_wbmg is false, our theoretical prediction would be wrong
-    expected_combination = 0
+    # we know bmg -> wbmg. But not wbmg->bmg. So if bmg_implies_wbmg is false, our theoretical prediction would be wrong
     wrong_combinations = 0
+    implies_bmg = 0
+    not_implies_bmg = 0
     for i in range(1000):
         trees = create_gene_tree_n_leaves(leaves, species, species_tree_age)
 
         gene_tree_di_graph = trees.gene_tree
 
         G_transformed = transform(gene_tree_di_graph, 10)
-        also_bmg, also_wbmg = bmg_wbmg_check(G_transformed)
-        if also_wbmg:
-            expected_combination += 1
-        else:
+        bmg_implies_wbmg, wbmg_implies_bmg = bmg_wbmg_check(G_transformed)
+        if not bmg_implies_wbmg:
             wrong_combinations += 1
 
-    print(
-        expected_combination, wrong_combinations
-    )  # checked with 1000 networks and 10 species each, all as expected
+        if wbmg_implies_bmg:
+            implies_bmg += 1
+        else:
+            not_implies_bmg += 1
+
+    print(wrong_combinations, implies_bmg, not_implies_bmg)
 
 
 if __name__ == "__main__":

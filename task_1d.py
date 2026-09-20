@@ -10,7 +10,7 @@ from utils.bic_cherry import restricted_bic_cherry_extension
 
 def generated_examples_test():
     species = 2
-    leaves = 10
+    leaves = 3
     species_tree_age = 1
     for i in range(10):
         tree = create_gene_tree_n_leaves(leaves, species, species_tree_age).gene_tree
@@ -23,7 +23,13 @@ def generated_examples_test():
             print("success")
         else:
             print("fail")
-            print_graph_diff(wbmg, wbmg2)
+            print(list(wbmg.nodes(data="color")))
+            print("wbmg:", list(wbmg.edges()))
+            print("network2:", list(network2.edges()))
+            print("wbmg2:", list(wbmg2.edges()))
+            return
+
+            # print_graph_diff(wbmg, wbmg2)
 
 
 # some fails, some successes...
