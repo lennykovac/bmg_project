@@ -285,6 +285,7 @@ def make_guard(reference: nx.DiGraph, mode: str = "bmg") -> Callable[[nx.DiGraph
     (weak) BMG as ``reference``? Vertex sets (= leaves) and edge sets are compared."""
     if mode not in ("bmg", "wbmg"):
         raise ValueError(f"unknown mode {mode!r} (use 'bmg' or 'wbmg')")
+
     compute = bmg_from_network if mode == "bmg" else wbmg_from_network
     G = compute(reference)
     nodes, edges = set(G.nodes), set(G.edges)

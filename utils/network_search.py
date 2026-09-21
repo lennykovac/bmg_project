@@ -59,6 +59,7 @@ def inner_clusters(N: nx.DiGraph) -> set:
 def make_score_guided(lrt: nx.DiGraph) -> Callable[[nx.DiGraph], int]:
     target = inner_clusters(lrt)
 
+    # the lower the better
     def score(N):
         return len(inner_clusters(N) ^ target) + hybrid_excess(N)
 
@@ -236,7 +237,7 @@ def edit_search(
 
 
 # ---------------------------------------------------------------------------
-# simple T*-agnostic greedy (fixed version of the original heuristic)
+# simple T*-agnostic greedy 
 # ---------------------------------------------------------------------------
 
 def reduce_to_tree(network: nx.DiGraph, mode: str = "bmg", max_rounds: int = 1000):
