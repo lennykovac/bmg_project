@@ -108,13 +108,13 @@ def unravel(network: nx.DiGraph) -> nx.DiGraph:
     unravelling = nx.DiGraph()
     root = root_from_network(network)
     # candidates = pair of original node and one copy in unravelling
-    candidates = [(root, "R_0")]
+    candidates = deque([(root, "R_0")])
     # store number of node occurences in a dict - use for naming duplicate nodes in unravelling, e.g. "4_0" if first node named 4 etc.
     node_dict: defaultdict[Hashable, int] = defaultdict(int)
     node_dict[root] = 1
     # work through input graph and build unravelling
     while len(candidates) > 0:
-        node, node_id = candidates.pop()
+        node, node_id = candidates.popleft()
         successors = list(network.successors(node))
         new_successors = []
         for d in successors:
@@ -129,6 +129,27 @@ def unravel(network: nx.DiGraph) -> nx.DiGraph:
     return unravelling
 
 
+def reduce_unravelling(unravelling: nx.DiGraph) -> nx.DiGraph:
+    reduction = unravelling.copy()
+    rename_dict: dict[str, int] = {}
+    leaves: set[int] = set()
+    for n in unravelling.nodes():
+        split = str(n).split("_")
+        n_number: int = int(split[1])
+        if n_number > 0:
+            reduction.remove_node(n)
+        else:
+            if not ("p" in split[0] or "q" in split[0] or "R" in split[0]):
+                rename_dict[n] = int(split[0])  # remove "_0" from real leaves
+                leaves.add(int(split[0]))
+
+    reduction = nx.relabel_nodes(G=reduction, mapping=rename_dict, copy=True)
+
+    normalize(reduction, leaves=leaves)
+
+    return reduction
+
+
 if __name__ == "__main__":
     # print(tree.edges())
     # print(bmg.edges())
@@ -139,12 +160,10 @@ if __name__ == "__main__":
 
     unr = unravel(norm_net)
     print(nx.is_isomorphic(unr, network_unravelled))
-    print("graph 1:")
-    print("nodes:", unr.nodes())
-    print("edges:", unr.edges())
-    print("graph 2:")
-    print("nodes:", network_unravelled.nodes())
-    print("edges:", network_unravelled.edges())
+
+    reduction = reduce_unravelling(unr)
+
+    print(nx.is_isomorphic(tree, reduction))
 
 
 # bmg = nx.DiGraph()
