@@ -1,9 +1,14 @@
 from collections import defaultdict, deque
 from typing import Hashable
 
+from utils.bic_cherry import bic_cherry_extension
 from utils.graph_editing import make_guard, normalize
-from utils.graph_utils import root_from_network
+from utils.graph_utils import bmg_from_network, print_graph_diff, root_from_network
 import networkx as nx
+from asymmetree.analysis import bmg_from_tree, lrt_from_tree
+
+from utils.lrt import lrt_from_bmg
+from utils.tree_utils import create_gene_tree_n_leaves
 
 G = nx.DiGraph()
 
@@ -137,12 +142,26 @@ def reduce_unravelling(unravelling: nx.DiGraph) -> nx.DiGraph:
 
 # tests: test if unraveling "BMG" is always the same as network BMG;
 
-g = make_guard(G, mode="bmg")
-G_norm = G.copy()
-normalize(
-    G_norm, set([v for v in G.nodes() if G.out_degree(v) == 0])
-)  # doesnt change anything
-# print(g(G_norm))
-# print(list(G_norm.edges()))
-g_norm_unr = unravel(G_norm)
-print(g_norm_unr.edges())
+for i in range(1):
+    gene_tree, _, original = create_gene_tree_n_leaves(4, 2)
+    bmg = bmg_from_network(gene_tree)
+    lrt = lrt_from_bmg(bmg)
+    network = bic_cherry_extension(bmg)
+
+    g = make_guard(network, mode="bmg")
+    G_norm = network.copy()
+    leaves = set([v for v in network.nodes() if network.out_degree(v) == 0])
+    stats = normalize(G_norm, leaves)
+    g_norm_unr = unravel(G_norm)
+    red_unr = reduce_unravelling(g_norm_unr)
+    normalize(red_unr, leaves)
+    bmg2 = bmg_from_network(red_unr)
+    print("gene_tree :", gene_tree.edges())
+    print("leaf colors :", gene_tree.nodes(data="color"))
+    print("lrt :", lrt.edges())
+    print("bmg :", bmg.edges())
+    print("network:", network.edges())
+    print("normalized network:", G_norm.edges())
+    print("red_unr :", red_unr.edges())
+    print("leaf colors red_unr :", red_unr.nodes(data="color"))
+    print_graph_diff(bmg, bmg2)
