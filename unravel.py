@@ -69,7 +69,6 @@ norm_G.add_edges_from(
 )
 
 
-# TODO: check if color is copied into unr & do the naming thing with nodes!
 def unravel(network: nx.DiGraph) -> nx.DiGraph:
     """
     Takes normalized DAG and produces its unravelling (needed for further reductions). Only input reduced, normalized networks, as unravellings
@@ -80,25 +79,24 @@ def unravel(network: nx.DiGraph) -> nx.DiGraph:
 
     unravelling = nx.DiGraph()
     root = root_from_network(network)
-    unravelling.add_node(root)
-    candidates = [root]
-    # store number of node occurences in a dict
+    # candidates = pair of original node and one copy in unravelling
+    candidates = [(root, "R_0")]
+    # store number of node occurences in a dict - use for naming duplicate nodes in unravelling, e.g. "4_0" if first node named 4 etc.
     node_dict: defaultdict[Hashable, int] = defaultdict(int)
     node_dict[root] = 1
+    # work through input graph and build unravelling
     while len(candidates) > 0:
-        node = candidates[0]
+        node, node_id = candidates.pop()
         successors = list(network.successors(node))
-        print(successors)
-        candidates.remove(node)
-        candidates.extend(successors)
         new_successors = []
         for d in successors:
             id = f"{d}_{node_dict[d]}"
+            # add new candidate - copy tuple to look at later
+            candidates.append((d, id))
             unravelling.add_node(id, **network.nodes[d])
             new_successors.append(id)
             node_dict[d] += 1
-        print(new_successors)
-        unravelling.add_edges_from([(node, v) for v in new_successors])
+        unravelling.add_edges_from([(node_id, v) for v in new_successors])
 
     return unravelling
 
