@@ -237,7 +237,7 @@ def edit_search(
 
 
 # ---------------------------------------------------------------------------
-# simple T*-agnostic greedy 
+# simple T*-agnostic greedy
 # ---------------------------------------------------------------------------
 
 def reduce_to_tree(network: nx.DiGraph, mode: str = "bmg", max_rounds: int = 1000):

@@ -1,30 +1,5 @@
-"""
-Task 2.2(c): edit operations on leaf-colored networks.
-
-Two kinds of edits
-------------------
-(A) BMG-INVARIANT edits. They never change the ancestor order ⪯ restricted to
-    vertices that can be a least common ancestor, so strict AND weak best
-    match graphs are preserved unconditionally (proof sketches inline; the
-    tests check them empirically):
-      * remove_twin_vertex           same parents and same children
-      * remove_single_child_vertex   out-degree 1 (never ⪯-minimal: its child
-                                     has the same leaf set and lies below)
-      * remove_dead_vertex           non-leaf that lost all children
-                                     (has no leaf descendants -> in no CA set)
-      * remove_shortcut_edge         (u, v) with another u -> ... -> v path
-                                     (reachability unchanged)
-    ``normalize`` applies them until a fixpoint (a "phylogenetic" network).
-
-(B) STRUCTURAL edits, which may change the (weak) BMG and therefore must be
-    guarded (task 2.2(d), see ``try_edit``):
-      * pull_up(u, v, target)    replace (u, v) by (target, v), target ≻ u
-      * pull_down(u, v, target)  replace (u, v) by (target, v), target ≺ u
-      * contract_edge(u, v)      merge v into u (v has a single parent)
-
-"""
-
-from typing import Any, Callable, Hashable, Optional
+from collections import defaultdict
+from typing import Any, Hashable, Optional
 
 import networkx as nx
 
@@ -33,6 +8,9 @@ from utils.graph_utils import bmg_from_network, wbmg_from_network
 
 def _is_leaf(network: nx.DiGraph, v: Hashable) -> bool:
     return network.out_degree(v) == 0
+
+def _is_root(network: nx.DiGraph, v) -> bool:
+    return network.in_degree(v) == 0
 
 
 # ---------------------------------------------------------------------------
@@ -303,7 +281,8 @@ def bmg_is_same(network1, network2, mode="bmg") -> bool:
 
 def try_edit(network: nx.DiGraph, edit_fn, *args: Any, still_valid=None, **kwargs: Any) -> tuple[nx.DiGraph, bool]:
     """Apply ``edit_fn`` to a COPY; reject on ValueError or if
-    ``still_valid(network, copy)`` is False. Returns (result, applied)."""
+    ``still_valid(network, copy)`` is False. Returns (result, applied).
+    """
     candidate = network.copy()
     try:
         edit_fn(candidate, *args, **kwargs)
