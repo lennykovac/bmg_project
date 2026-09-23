@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Any, Hashable, Optional
+from typing import Any, Hashable, Optional, Callable
 
 import networkx as nx
 

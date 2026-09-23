@@ -12,7 +12,84 @@ import networkx as nx
 from pyvis.network import Network
 from collections import Counter
 
+###############################################################################
+# GENERIC HELPER
+###############################################################################
+def insert_node_on_edge(node_for_adding: Any, edge: Tuple[Any, Any], G: nx.DiGraph):
+    """
+    Inserts a node onto an edge and removes the old redundant edge
+    Function is inplace!
 
+    Parameters:
+    node_for_adding: New node
+    edge: on which the node should be placed
+    G: Directed Graph
+
+    Raises:
+    ValueError: if the edge is not in G or the node is already in G. Both are
+    checked up front, so a failing call leaves G untouched.
+    """
+    parent_node, child_node = edge
+
+    # validate before we touch G, otherwise a bad edge leaves a half inserted
+    # node behind (add_node and add_edge would already have run)
+    if not G.has_edge(parent_node, child_node):
+        raise ValueError(f"{edge} is not an edge of G")
+    if node_for_adding in G:
+        raise ValueError(f"{node_for_adding} is already a vertex of G")
+
+    # add new node TODO: think about default color
+    G.add_node(node_for_adding, color=None)
+    # add edge from parent_node to new_node
+    G.add_edge(parent_node, node_for_adding)
+    # add edge from new_node to child_node
+    G.add_edge(node_for_adding, child_node)
+    # remove old edge
+    G.remove_edge(parent_node, child_node)
+
+
+def root_from_network(network: nx.DiGraph) -> Any:
+    """
+    Returns the root from
+    """
+
+    roots = [n for n in network.nodes() if network.in_degree(n) == 0]
+
+    if len(roots) != 1:
+        raise ValueError(f"Expected exactly one root, found {len(roots)}")
+
+    root = roots[0]
+
+    return root
+
+
+def leaves_from_network(network: nx.DiGraph) -> list[Hashable]:
+
+    return [n for n in network.nodes() if network.out_degree(n) == 0]
+
+# used in testing if bmg/wbmg_from_network works correctly
+def check_sicorinhub(G: nx.DiGraph):
+    """
+    Checks if given DiGraph has the sicor-in-hub property.
+
+    Parameters:
+    G: DiGraph with no self-loops! BMGs and WBMGs should not have self loops.
+
+    Returns:
+    Boolean value True, iff G has sicor-in-hub property.
+    """
+    color_counts = Counter(nx.get_node_attributes(G, "color").values())
+    unique_nodes = [n for n, d in G.nodes(data=True) if color_counts[d["color"]] == 1]
+    for n in unique_nodes:
+        # because no Multigraph and self-loop-free
+        if G.in_degree(n) != G.number_of_nodes() - 1:
+            return False
+    return True
+
+
+###############################################################################
+# VISUALISATION AND PRINTING
+###############################################################################
 def show_graph(di_graph: nx.DiGraph):
     """
     Shows u a neat graph view of the DAG
