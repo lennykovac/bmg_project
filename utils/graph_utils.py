@@ -50,7 +50,7 @@ def insert_node_on_edge(node_for_adding: Any, edge: Tuple[Any, Any], G: nx.DiGra
 
 def root_from_network(network: nx.DiGraph) -> Any:
     """
-    Returns the root from 
+    Returns the root from
     """
 
     roots = [n for n in network.nodes() if network.in_degree(n) == 0]
