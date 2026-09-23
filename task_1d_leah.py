@@ -16,7 +16,10 @@ from utils.bic_cherry_one_node_init import (
     bic_cherry_extension,
     bic_cherry,
     restricted_bic_cherry_extension,
-    restricted_bic_cherry_more_extensions
+    restricted_bic_cherry_more_extensions,
+    wbmg_bic_cherry,
+    wbmg_bic_cherry2
+
 )
 
 
@@ -76,7 +79,7 @@ def test_missing_edges_are_weak_best_matches():
 
 
 
-def wbm_minimal_example(max_leaves=10, runs_per_size=4000):
+def wbm_minimal_example(max_leaves=10, runs_per_size=100):
     species = 2
     species_tree_age = 1
 
@@ -106,7 +109,7 @@ def wbm_minimal_example(max_leaves=10, runs_per_size=4000):
     return None, None, None, None
 
 
-def wbm_more_extensions_minimal_example(max_leaves=10, runs_per_size=1000):
+def wbm_more_extensions_minimal_example(max_leaves=10, runs_per_size=5000):
     species = 2
     species_tree_age = 1
 
@@ -124,7 +127,7 @@ def wbm_more_extensions_minimal_example(max_leaves=10, runs_per_size=1000):
 
             wbmg = wbmg_from_network(graph)
 
-            network, pairs, extend_pairs = restricted_bic_cherry_more_extensions(wbmg)
+            network, pairs, extend_pairs = wbmg_bic_cherry2(wbmg)
 
             new_wbmg = wbmg_from_network(network)
 
