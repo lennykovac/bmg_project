@@ -1,5 +1,5 @@
 from utils.graph_utils import transform, bmg_from_network, wbmg_from_network
-from utils.tree_utils import create_gene_tree
+from utils.tree_utils import create_gene_tree_n_leaves
 import networkx as nx
 
 
@@ -46,12 +46,13 @@ def bmg_wbmg_check(G: nx.DiGraph):
 
 def main():
     species = 10
+    leaves = 20
     species_tree_age = 1
     # we know bmg -> wbmg. But not wbmg->bmg. So if also_wbmg is false, our theoretical prediction would be wrong
     expected_combination = 0
     wrong_combinations = 0
     for i in range(1000):
-        trees = create_gene_tree(species, species_tree_age)
+        trees = create_gene_tree_n_leaves(leaves, species, species_tree_age)
 
         gene_tree_di_graph = trees.gene_tree
 

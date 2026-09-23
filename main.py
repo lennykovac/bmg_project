@@ -1,11 +1,12 @@
 from utils.graph_utils import show_graph, transform
-from utils.tree_utils import create_gene_tree
+from utils.tree_utils import create_gene_tree_n_leaves
 
 if __name__ == "__main__":
     # G = nx.read_gml("tests/gene_tree_test_file.gml")
     species = 10
+    leaves = 20
     species_tree_age = 1
-    trees = create_gene_tree(species, species_tree_age)
+    trees = create_gene_tree_n_leaves(leaves, species, species_tree_age)
 
     gene_tree_di_graph = trees.gene_tree
     species_tree_di_graph = trees.gene_tree

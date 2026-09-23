@@ -204,5 +204,4 @@ def try_edit(network: nx.DiGraph, edit_fn, *args: Any, still_valid=None, **kwarg
 
     if still_valid is not None and not still_valid(network, candidate):
         return network, False
-
     return candidate, True
