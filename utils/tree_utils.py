@@ -50,8 +50,8 @@ def tree_to_digraph(tree: Tree) -> nx.DiGraph:
 
 
 def create_gene_tree_n_leaves(
-    leaves: int,
-    species: int,
+    leaves: int = 4, 
+    species: int = 2,
     spt_age: float = 1.0,
     loss_rate: float = 0.5,
     hgt_rate: float = 0.1,
@@ -95,3 +95,10 @@ def create_gene_tree_n_leaves(
         species_tree=tree_to_digraph(species_tree),
         original_gene_tree=best_tree,
     )
+
+def import_good_trees() -> list[nx.DiGraph]:
+    # import trees from a file and return as a list
+    # smth like this?
+    # good_trees_file = "../objects/good_trees.gml"
+    # trees = nx.read_gml(good_trees_file)
+    pass

@@ -94,7 +94,7 @@ def _choose_z(bmg: nx.DiGraph, x, y, restricted: bool, arcs: set):
     )
 
 
-def expansion(
+def bic_cherry_expansion(
     bmg: nx.DiGraph,
     restricted: bool = False,
 ) -> nx.DiGraph:
@@ -121,11 +121,3 @@ def expansion(
         network.add_edge(f"q:{x}|{z}", z)
 
     return network
-
-
-def bic_cherry_expansion(bmg: nx.DiGraph) -> nx.DiGraph:
-    return expansion(bmg, restricted=False)
-
-
-def restricted_bic_cherry_expansion(bmg: nx.DiGraph) -> nx.DiGraph:
-    return expansion(bmg, restricted=True)
