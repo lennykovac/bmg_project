@@ -20,13 +20,6 @@ The two routes must agree: for a gene tree ``T`` with BMG ``G(T)`` we have
 ``LRT(T) == LRT(G(T))``, which is exactly what :func:`lrt_cross_check` asserts
 and what the test suite uses as an oracle for our own ``bmg_from_network``.
 
-Caveat about labels
--------------------
-``lrt_from_tree`` runs ``topology_only``, which sets the label of *every* inner
-vertex to ``""``; ``lrt_from_colored_graph`` returns inner vertices that have
-no ``label`` attribute at all. Inner vertices therefore get fresh synthetic ids
-(``"i0"``, ``"i1"``, ...) during conversion, while leaves keep their original
-label, which is what makes the leaf sets comparable.
 """
 
 from __future__ import annotations
@@ -47,6 +40,7 @@ __all__ = [
     "lrt_of_tree",
     "asymmetree_bmg",
     "lrt_cross_check",
+    "is_bmg",
 ]
 
 
@@ -116,8 +110,12 @@ def lrt_from_bmg(
     mincut: bool = False,
     weighted_mincut: bool = False,
 ) -> nx.DiGraph | None:
-    """Least resolved tree of a colored digraph, as an ``nx.DiGraph``."""
+    """Least resolved tree of a colored digraph, as an ``nx.DiGraph``.
 
+    Thin wrapper around ``asymmetree.analysis.best_matches.lrt_from_colored_graph``.
+    Returns ``None`` exactly when that function does, i.e. when ``graph`` is not
+    a BMG and no mincut heuristic was requested.
+    """
     tree = _bm.lrt_from_colored_graph(graph, mincut=mincut, weighted_mincut=weighted_mincut)
     if tree is None:
         return None
@@ -138,9 +136,13 @@ def lrt_of_tree(tree: nx.DiGraph) -> nx.DiGraph:
 
 
 def asymmetree_bmg(tree: nx.DiGraph) -> nx.DiGraph:
-    """BMG of a gene tree computed by AsymmeTree"""
+    """BMG of a gene tree computed by AsymmeTree (independent oracle)."""
     return _bm.bmg_from_tree(digraph_to_tralda(tree))
 
+
+def is_bmg(graph: nx.DiGraph) -> bool:
+    """True iff ``graph`` is a (tree-)BMG, via AsymmeTree's characterisation."""
+    return _bm.is_bmg(graph) is not None
 
 
 def lrt_cross_check(gene_tree: nx.DiGraph, bmg: nx.DiGraph) -> bool:
@@ -162,7 +164,10 @@ def lrt_cross_check(gene_tree: nx.DiGraph, bmg: nx.DiGraph) -> bool:
 def lrt_target(gene_tree: nx.DiGraph) -> tuple[nx.DiGraph, nx.DiGraph]:
     """Task 2a in one call: ``(tree-BMG, least resolved tree T*)``.
 
-    The BMG is taken from our own ``bmg_from_network`` and ``T*`` is computed from that graph, 
+    The BMG is taken from our own ``bmg_from_network`` (the object the rest of
+    the pipeline works with) and ``T*`` is computed from that graph, so the
+    target really is the LRT *of the graph we are trying to explain*. The
+    leaves of ``T*`` are the vertices of the BMG.
     """
     from utils.graph_utils import bmg_from_network
 
