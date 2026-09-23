@@ -1,170 +1,178 @@
+"""Least resolved trees -- the bridge between our ``nx.DiGraph`` world and
+``asymmetree.analysis.best_matches`` / ``tralda``.
+
+Everything in this project is a ``networkx.DiGraph`` whose vertices carry a
+``color`` attribute (``None`` on inner vertices). AsymmeTree instead works on
+``tralda.datastructures.Tree`` objects whose *leaves* carry ``label`` and
+``reconc``. 
+
+``lrt_from_tree(T: Tree) -> Tree``
+    contracts all redundant edges of a gene tree -- the least resolved tree of
+    the BMG of that tree, computed *from the tree*.
+``lrt_from_colored_graph(G, mincut=False, weighted_mincut=False) -> Tree | None``
+    BUILD on the informative triples of ``G`` -- the least resolved tree of a
+    graph, ``None`` if ``G`` is not a BMG (unless a mincut heuristic is asked
+    for).
+``lrt_from_2bmg(G) -> Tree | None``
+    the linear-time special case for two colors.
+
+The two routes must agree: for a gene tree ``T`` with BMG ``G(T)`` we have
+``LRT(T) == LRT(G(T))``, which is exactly what :func:`lrt_cross_check` asserts
+and what the test suite uses as an oracle for our own ``bmg_from_network``.
+
 """
-Task 2.2(a): least resolved tree (LRT) T* of a tree-BMG (G, sigma).
 
-Two independent constructions:
+from __future__ import annotations
 
-1. ``lrt_from_bmg(G)``.
-   Corrigendum, Def. 11: informative triples
-       R(G, sigma) = { ab|b' : sigma(a) != sigma(b) = sigma(b'),
-                               ab ∈ E(G), ab' ∉ E(G) }.
-   Theorem 15: (G, sigma) is a BMG  <=>  G(Aho(R(G, sigma)), sigma) = (G, sigma),
-   and then Aho(R(G, sigma)) is the UNIQUE least resolved tree.
-   Aho(R) is computed with BUILD (Aho et al. 1981; Sec. 3.4 of the paper).
-
-2. ``lrt_by_contraction(T, G)`` -- *from any explaining tree* (e.g. the
-   AsymmeTree gene tree). Theorem 13 / Cor. 2: T* is obtained by contracting
-   all redundant edges in arbitrary order. Redundant edges are characterised
-   by Lemma 21 (corrigendum):
-       inner edge uv (v ≺ u) is redundant  <=>  there is NO arc ab ∈ E(G) with
-       lca_T(a, b) = v and sigma(b) ∈ sigma(L(T(u)) \\ L(T(v))).
-"""
-
-from itertools import count
+from typing import Hashable
 
 import networkx as nx
+from asymmetree.analysis import best_matches as _bm
+from tralda.datastructures import Tree, TreeNode
 
-from utils.graph_utils import bmg_from_network, clusters
+from utils.graph_utils import root_from_network
 
-
-# ---------------------------------------------------------------------------
-# informative triples + BUILD
-# ---------------------------------------------------------------------------
-
-def informative_triples(G: nx.DiGraph) -> set:
-    """R(G, sigma) as a set of tuples (a, b, c) meaning the triple ab|c."""
-    color = nx.get_node_attributes(G, "color")
-    by_color: dict = {}
-    for v, c in color.items():
-        by_color.setdefault(c, set()).add(v)
-    R = set()
-    for a in G.nodes:
-        out = set(G.successors(a))
-        for s, vertexes_s_color in by_color.items():
-            if s == color[a]:
-                continue
-            # vertexes that are not of the same color as a but are ist successors
-            hits = out & vertexes_s_color
-            # vertexes that are not of the same color as a minus ist successors
-            misses = vertexes_s_color - out
-            for b in hits:
-                for b2 in misses:
-                    R.add((a, b, b2))
-    return R
-
-
-def aho_build(leaves, triples) -> nx.DiGraph | None:
-    """BUILD: returns Aho(R) as nx.DiGraph (leaves = given leaves) or None if R
-    is inconsistent. Inner vertices are named 'rho' (root), 'v1', 'v2', ..."""
-    leaves = list(leaves)
-    T = nx.DiGraph()
-    T.add_nodes_from(leaves)
-    if len(leaves) == 1:
-        return T
-    ids = count(1)
-
-    def recurse(node, L, R):
-        # Aho graph [R, L]: edge a-b for every ab|c with a, b, c ∈ L
-        aho = nx.Graph()
-        aho.add_nodes_from(L)
-        aho.add_edges_from((a, b) for a, b, _ in R)
-        comps = [frozenset(c) for c in nx.connected_components(aho)]
-        if len(comps) == 1:
-            return False  # connected Aho graph with |L| > 1 -> inconsistent
-        for C in comps:
-            if len(C) == 1:
-                T.add_edge(node, next(iter(C)))
-                continue
-            child = f"v{next(ids)}"
-            T.add_edge(node, child)
-            R_C = [t for t in R if t[0] in C and t[1] in C and t[2] in C]
-            if not recurse(child, C, R_C):
-                return False
-        return True
-
-    Lset = frozenset(leaves)
-    return T if recurse("rho", Lset, list(triples)) else None
-
-
-def lrt_from_bmg(G: nx.DiGraph, verify: bool = True) -> nx.DiGraph:
-    """Unique least resolved tree of a (tree-)BMG via Theorem 15.
-
-    Raises ValueError if (G, sigma) is not a BMG (R inconsistent, or
-    G(Aho(R)) != G)."""
-    T = aho_build(G.nodes, informative_triples(G))
-    if T is None:
-        raise ValueError("informative triples are inconsistent: G is not a BMG")
-    for v in T.nodes:
-        T.nodes[v]["color"] = G.nodes[v]["color"] if v in G else None
-    if verify:
-        H = bmg_from_network(T)
-        if set(H.edges) != set(G.edges):
-            raise ValueError("G(Aho(R)) != G: G is not a BMG (Thm. 15)")
-    return T
+__all__ = [
+    "tralda_to_digraph",
+    "digraph_to_tralda",
+    "lrt_from_bmg",
+    "lrt_from_two_colored_bmg",
+    "lrt_of_tree",
+    "asymmetree_bmg",
+    "lrt_cross_check",
+    "is_bmg",
+]
 
 
 # ---------------------------------------------------------------------------
-# redundant edges (Lemma 21) and contraction
+# conversion
 # ---------------------------------------------------------------------------
 
-def _tree_lca(T: nx.DiGraph, parent: dict, depth: dict, a, b):
-    while depth[a] > depth[b]:
-        a = parent[a]
-    while depth[b] > depth[a]:
-        b = parent[b]
-    while a != b:
-        a, b = parent[a], parent[b]
-    if a==b:
-        return a
-    raise ValueError
+def tralda_to_digraph(tree: Tree, inner_prefix: str = "i") -> nx.DiGraph:
+    """``tralda`` tree -> ``nx.DiGraph`` with ``color`` on the leaves.
+
+    Leaves keep their ``label``; inner vertices are renamed to
+    ``f"{inner_prefix}{k}"`` in preorder because their labels are unusable
+    (empty or absent, see the module docstring).
+    """
+    D = nx.DiGraph()
+    ids: dict[int, Hashable] = {}
+    counter = 0
+
+    for v in tree.preorder():
+        if v.children:
+            ids[id(v)] = f"{inner_prefix}{counter}"
+            counter += 1
+            D.add_node(ids[id(v)], color=None)
+        else:
+            label = getattr(v, "label", None)
+            if label is None or label == "":
+                raise ValueError("leaf without a usable label in the tralda tree")
+            ids[id(v)] = label
+            D.add_node(label, color=getattr(v, "reconc", None))
+
+    for v in tree.preorder():
+        for c in v.children:
+            D.add_edge(ids[id(v)], ids[id(c)])
+
+    return D
 
 
-def redundant_edges(T: nx.DiGraph, G: nx.DiGraph) -> list:
-    """All redundant edges (u, v) of a tree T explaining G (Lemma 21)."""
-    root = next(v for v in T if T.in_degree(v) == 0)
-    parent = {v: next(iter(T.predecessors(v))) for v in T if v != root}
-    depth = nx.single_source_shortest_path_length(T, root)
-    cl = clusters(T)
-    color = {x: G.nodes[x]["color"] for x in G.nodes}
+def digraph_to_tralda(tree: nx.DiGraph) -> Tree:
+    """``nx.DiGraph`` (a rooted tree!) -> ``tralda`` tree.
 
-    # colors of arcs ab grouped by lca_T(a, b)
-    arc_colors_at: dict = {}
-    for a, b in G.edges:
-        arc_colors_at.setdefault(_tree_lca(T, parent, depth, a, b), set()).add(color[b])
+    Leaves receive ``label`` (the vertex itself) and ``reconc`` (its color),
+    which is what ``bmg_from_tree`` and ``lrt_from_tree`` read.
+    """
+    root = root_from_network(tree)
+    if any(tree.in_degree(v) > 1 for v in tree):
+        raise ValueError("digraph_to_tralda expects a tree, not a network")
 
-    red = []
-    for u, v in T.edges:
-        if T.out_degree(v) == 0:
-            continue  # outer edge: never redundant
-        rest_colors = {color[x] for x in cl[u] - cl[v]}
-        if not (arc_colors_at.get(v, set()) & rest_colors):
-            red.append((u, v))
-    return red
+    nodes: dict[Hashable, TreeNode] = {}
+    for v in nx.topological_sort(tree):
+        node = TreeNode()
+        node.label = v
+        if tree.out_degree(v) == 0:
+            node.reconc = tree.nodes[v].get("color")
+        nodes[v] = node
+        for parent in tree.predecessors(v):
+            nodes[parent].add_child(node)
 
-
-def contract_vertex(T: nx.DiGraph, v) -> None:
-    """Contract the edge (parent(v), v) in place (v must have in-degree 1)."""
-    (u,) = T.predecessors(v)
-    children = list(T.successors(v))
-    T.remove_node(v)
-    T.add_edges_from((u, c) for c in children)
+    return Tree(nodes[root])
 
 
-def lrt_by_contraction(T: nx.DiGraph, G: nx.DiGraph) -> nx.DiGraph:
-    """Contract all redundant edges of T (Thm. 13: order is irrelevant)."""
-    T = T.copy()
-    for _, v in redundant_edges(T, G):
-        contract_vertex(T, v)  # identified by lower endpoint -> order-independent
+# ---------------------------------------------------------------------------
+# LRT entry points
+# ---------------------------------------------------------------------------
 
-    # suppress a possible single-child root (non-phylogenetic input)
-    root = next(v for v in T if T.in_degree(v) == 0)
-    while T.out_degree(root) == 1:
-        (c,) = T.successors(root)
-        T.remove_node(root)
-        root = c
-    return T
+def lrt_from_bmg(
+    graph: nx.DiGraph,
+    mincut: bool = False,
+    weighted_mincut: bool = False,
+) -> nx.DiGraph | None:
+    """Least resolved tree of a colored digraph, as an ``nx.DiGraph``.
+
+    Thin wrapper around ``asymmetree.analysis.best_matches.lrt_from_colored_graph``.
+    Returns ``None`` exactly when that function does, i.e. when ``graph`` is not
+    a BMG and no mincut heuristic was requested.
+    """
+    tree = _bm.lrt_from_colored_graph(graph, mincut=mincut, weighted_mincut=weighted_mincut)
+    if tree is None:
+        return None
+    return tralda_to_digraph(tree)
 
 
-def is_least_resolved(T: nx.DiGraph, G: nx.DiGraph) -> bool:
-    """T explains G and has no redundant edge (Def. 6 + Lemma 21)."""
-    H = bmg_from_network(T)
-    return set(H.edges) == set(G.edges) and not redundant_edges(T, G)
+def lrt_from_two_colored_bmg(graph: nx.DiGraph) -> nx.DiGraph | None:
+    """Least resolved tree of a 2-colored BMG (linear-time algorithm)."""
+    tree = _bm.lrt_from_2bmg(graph)
+    if tree is None:
+        return None
+    return tralda_to_digraph(tree)
+
+
+def lrt_of_tree(tree: nx.DiGraph) -> nx.DiGraph:
+    """Least resolved tree *of a gene tree*, by contracting redundant edges."""
+    return tralda_to_digraph(_bm.lrt_from_tree(digraph_to_tralda(tree)))
+
+
+def asymmetree_bmg(tree: nx.DiGraph) -> nx.DiGraph:
+    """BMG of a gene tree computed by AsymmeTree (independent oracle)."""
+    return _bm.bmg_from_tree(digraph_to_tralda(tree))
+
+
+def is_bmg(graph: nx.DiGraph) -> bool:
+    """True iff ``graph`` is a (tree-)BMG, via AsymmeTree's characterisation."""
+    return _bm.is_bmg(graph) is not None
+
+
+def lrt_cross_check(gene_tree: nx.DiGraph, bmg: nx.DiGraph) -> bool:
+    """``LRT(T)`` and ``LRT(G(T))`` have to be the same tree.
+
+    Used as a consistency oracle in the tests: if our ``bmg_from_network`` and
+    AsymmeTree's ``bmg_from_tree`` disagree, or if either LRT route is wrong,
+    this returns ``False``.
+    """
+    from utils.graph_utils import same_phylogeny
+
+    from_tree = lrt_of_tree(gene_tree)
+    from_graph = lrt_from_bmg(bmg)
+    if from_graph is None:
+        return False
+    return same_phylogeny(from_tree, from_graph)
+
+
+def lrt_target(gene_tree: nx.DiGraph) -> tuple[nx.DiGraph, nx.DiGraph]:
+    """Task 2a in one call: ``(tree-BMG, least resolved tree T*)``.
+
+    The BMG is taken from our own ``bmg_from_network`` (the object the rest of
+    the pipeline works with) and ``T*`` is computed from that graph, so the
+    target really is the LRT *of the graph we are trying to explain*. The
+    leaves of ``T*`` are the vertices of the BMG.
+    """
+    from utils.graph_utils import bmg_from_network
+
+    bmg = bmg_from_network(gene_tree)
+    star = lrt_from_bmg(bmg)
+    if star is None:
+        raise ValueError("the BMG of a tree must have a least resolved tree")
+    return bmg, star
