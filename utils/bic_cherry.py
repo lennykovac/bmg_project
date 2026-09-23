@@ -123,9 +123,9 @@ def expansion(
     return network
 
 
-def bic_cherry_extension(bmg: nx.DiGraph) -> nx.DiGraph:
+def bic_cherry_expansion(bmg: nx.DiGraph) -> nx.DiGraph:
     return expansion(bmg, restricted=False)
 
 
-def restricted_bic_cherry_extension(bmg: nx.DiGraph) -> nx.DiGraph:
+def restricted_bic_cherry_expansion(bmg: nx.DiGraph) -> nx.DiGraph:
     return expansion(bmg, restricted=True)

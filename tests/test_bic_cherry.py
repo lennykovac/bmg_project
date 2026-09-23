@@ -8,9 +8,9 @@ from utils.graph_utils import (
 )
 from utils.tree_utils import create_gene_tree_n_leaves
 from utils.bic_cherry import (
-    bic_cherry_extension,
+    bic_cherry_expansion,
     bic_cherry,
-    restricted_bic_cherry_extension,
+    restricted_bic_cherry_expansion,
 )
 import pytest
 
@@ -76,9 +76,9 @@ def test_bic_cherry(sample_bmg_1):
     assert nx.is_isomorphic(bmg_from_network(cherry_network), full_bmg)
 
 
-def test_bic_cherry_extension(sample_bmg_1):
-    network = bic_cherry_extension(sample_bmg_1)
-    restricted_network = restricted_bic_cherry_extension(sample_bmg_1)
+def test_bic_cherry_expansion(sample_bmg_1):
+    network = bic_cherry_expansion(sample_bmg_1)
+    restricted_network = restricted_bic_cherry_expansion(sample_bmg_1)
 
     new_bmg = bmg_from_network(network)
     restricted_new_bmg = bmg_from_network(restricted_network)
@@ -111,7 +111,7 @@ def test_bic_cherry_generated_examples():
         assert nx.is_isomorphic(bmg_from_network(cherry_network), full_bmg)
 
 
-def test_bic_cherry_extension_generated_examples():
+def test_bic_cherry_expansion_generated_examples():
     species = 2
     leaves = 10
     species_tree_age = 1
@@ -119,7 +119,7 @@ def test_bic_cherry_extension_generated_examples():
         tree = create_gene_tree_n_leaves(leaves, species, species_tree_age).gene_tree
         graph = transform(tree, 2)
         bmg = bmg_from_network(graph)
-        network = bic_cherry_extension(bmg)
+        network = bic_cherry_expansion(bmg)
 
         new_bmg = bmg_from_network(network)
 
@@ -129,7 +129,7 @@ def test_bic_cherry_extension_generated_examples():
             assert False
 
 
-def test_restricted_bic_cherry_extension_generated_examples():
+def test_restricted_bic_cherry_expansion_generated_examples():
     species = 2
     leaves = 10
     species_tree_age = 1
@@ -137,7 +137,7 @@ def test_restricted_bic_cherry_extension_generated_examples():
         tree = create_gene_tree_n_leaves(leaves, species, species_tree_age).gene_tree
         trans_tree = transform(tree, 2)
         bmg = bmg_from_network(trans_tree)
-        restricted_network = restricted_bic_cherry_extension(bmg)
+        restricted_network = restricted_bic_cherry_expansion(bmg)
 
         restricted_new_bmg = bmg_from_network(restricted_network)
 
@@ -147,8 +147,8 @@ def test_restricted_bic_cherry_extension_generated_examples():
 
 def test_bmg_extra(sample_bmg_2):
 
-    network = bic_cherry_extension(sample_bmg_2)
-    restricted_network = restricted_bic_cherry_extension(sample_bmg_2)
+    network = bic_cherry_expansion(sample_bmg_2)
+    restricted_network = restricted_bic_cherry_expansion(sample_bmg_2)
 
     new_bmg = bmg_from_network(network)
     restricted_new_bmg = bmg_from_network(restricted_network)
