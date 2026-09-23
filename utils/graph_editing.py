@@ -41,12 +41,7 @@ Normalisation
 After every move :func:`normalize` restores the defining properties of a
 phylogenetic network: it removes inner vertices without children, suppresses
 inner vertices with a single child, and drops whatever became unreachable from
-the root. All three steps provably leave the (weak) best match graph
-unchanged -- a vertex with no leaf below it never occurs in an lca set, and a
-vertex ``v`` with a single child ``c`` satisfies ``desc(v) = {c} u desc(c)``,
-so ``v`` is a common ancestor of a pair exactly when ``c`` is and therefore is
-never ``<=``-minimal.
-"""
+the root. """
 
 from __future__ import annotations
 
@@ -58,7 +53,7 @@ from typing import Hashable, Iterator, NamedTuple
 
 import networkx as nx
 
-from utils.graph_utils import best_matches_from_network, leaves_from_network
+from utils.graph_utils import bmg_from_network, leaves_from_network
 
 __all__ = [
     "Move",
@@ -171,52 +166,58 @@ def _counter(iterable) -> dict:
 # normalisation
 # ---------------------------------------------------------------------------
 
+def remove_dead_vertex(M: nx.DiGraph, v) -> None:
+    """Remove an inner vertex with no children.
+ 
+    A dead vertex carries no leaves and never appears in an lca set, so
+    removing it preserves the BMG and WBMG.
+    """
+    M.remove_node(v)
+ 
+ 
+def remove_single_child_vertex(M: nx.DiGraph, v) -> None:
+    """Remove an inner vertex with a single child.
+ 
+    For a single-child vertex, desc(v) = {c} ∪ desc(c), so v is never lca-minimal
+    and can be suppressed without changing the BMG or WBMG.
+    """
+    child = next(iter(M.successors(v)))
+    for parent in M.predecessors(v):
+        if parent != child:
+            M.add_edge(parent, child)
+    M.remove_node(v)
+
 def normalize(N: nx.DiGraph, leaves: set | None = None) -> nx.DiGraph:
     """Turn the result of a move back into a phylogenetic network (copy).
 
     Raises ``ValueError`` if a leaf was lost, which would mean the move was
     illegal in the first place.
     """
+
     M = N.copy()
     if leaves is None:
         leaves = {v for v in M if M.out_degree(v) == 0}
     leaves = set(leaves)
-
-    # worklist instead of repeated full scans: only the neighbourhood of a
-    # removed vertex can become reducible
-    work = deque(M.nodes)
-    queued = set(M.nodes)
-    while work:
-        v = work.popleft()
-        queued.discard(v)
-        if v not in M or v in leaves:
-            continue
-
-        out = M.out_degree(v)
-        if out == 0:
-            # an inner vertex without children carries no leaf at all
-            touched = list(M.predecessors(v))
-            M.remove_node(v)
-        elif out == 1:
-            # suppress: desc(v) = {c} u desc(c), so v is never lca-minimal
-            child = next(iter(M.successors(v)))
-            touched = list(M.predecessors(v))
-            for parent in touched:
-                if parent != child:
-                    M.add_edge(parent, child)
-            M.remove_node(v)
-            touched = touched + [child]
-        else:
-            continue
-
-        for u in touched:
-            if u in M and u not in queued:
-                work.append(u)
-                queued.add(u)
-
+ 
+    # Repeatedly scan and remove reducible vertices until none remain
+    changed = True
+    while changed:
+        changed = False
+        for v in list(M.nodes):
+            if v not in M or v in leaves:
+                continue
+            out = M.out_degree(v)
+            if out == 0:
+                remove_dead_vertex(M, v)
+                changed = True
+            elif out == 1:
+                remove_single_child_vertex(M, v)
+                changed = True
+ 
     missing = leaves - set(M.nodes)
     if missing:
         raise ValueError(f"normalisation lost the leaves {sorted(map(str, missing))}")
+
     orphans = [v for v in leaves if M.in_degree(v) == 0 and M.number_of_nodes() > 1]
     if orphans:
         raise ValueError(f"leaves {sorted(map(str, orphans))} lost all parents")
@@ -406,7 +407,7 @@ def enumerate_moves(
     N: nx.DiGraph,
     kinds: tuple = DEFAULT_MOVES,
 ) -> list[Move]:
-    """All legal moves of the requested kinds, deterministically ordered."""
+    """All legal moves of the requested kinds."""
     leaves = {v for v in N if N.out_degree(v) == 0}
     moves: list[Move] = []
     desc = {v: nx.descendants(N, v) for v in N}
@@ -516,7 +517,7 @@ def single_moves(
     """
     rnd = _rng(rng)
     leaves = {v for v in network if network.out_degree(v) == 0}
-    reference = _arcs(best_matches_from_network(network, weak=True)) if preserve_wbmg else None
+    reference = _arcs(bmg_from_network(network, weak=True)) if preserve_wbmg else None
 
     moves = enumerate_moves(network, kinds)
     rnd.shuffle(moves)
@@ -528,7 +529,7 @@ def single_moves(
         except (ValueError, nx.NetworkXError):
             continue
         tried += 1
-        if preserve_wbmg and _arcs(best_matches_from_network(candidate, weak=True)) != reference:
+        if preserve_wbmg and _arcs(bmg_from_network(candidate, weak=True)) != reference:
             continue
         if record is not None:
             record.append(move)

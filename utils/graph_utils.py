@@ -278,110 +278,71 @@ def lca_dict_from_network(
     return lca_dict
 
 
-def bmg_from_network(
-    network: nx.DiGraph,
-) -> nx.DiGraph:
-    """Construct a BMG from bic-network.
-
+def bmg_from_network(network: nx.DiGraph, weak: bool = False) -> nx.DiGraph:
+    """Construct the (weak) best match graph of a leaf-colored network.
+ 
+    One function for both definitions, because they differ in exactly one
+    line -- the test applied to ``lca(x, y)`` -- and share everything else.
+ 
+    With ``U(x, tau) := union of lca(x, y') over the leaves y' of color tau``:
+ 
+    ``weak=False`` (**BMG**)
+        ``y`` is a best match of ``x`` iff no vertex of ``U(x, sigma(y))`` lies
+        strictly below a vertex of ``lca(x, y)``. Equivalently, ``lca(x, y)``
+        is as low as an lca of ``x`` with that color ever gets.
+ 
+    ``weak=True`` (**WBMG**)
+        with ``Q(x, tau) := min<= U(x, tau)``, ``y`` is a weak best match of
+        ``x`` iff ``lca(x, y)`` meets ``Q(x, sigma(y))`` -- ``y`` is reachable
+        from ``x`` through *one* of the lowest common ancestors, even if
+        another element of ``lca(x, y)`` sits higher up.
+ 
+    On trees both sets coincide; they differ only on genuine networks, where
+    ``lca`` can have more than one element.
+ 
     Args:
-        network: A network with leaves that has the `label` and `color` attribute set.
-
+        network: a network whose leaves have the `color` attribute set.
+        weak: use the weak definition of a best match.
+ 
     Returns:
-        The constructed BMG with attributes `label` and `color`
+        The constructed graph on the leaves, with the attribute `color`.
     """
-
     leaves = leaves_from_network(network)
-    bmg = nx.DiGraph()
-    colors = set()
-    reach = {
-        n: nx.descendants(network, n) for n in network.nodes
-    }  # pre-compute reachability in network as dict[{v:descendants of v}]
-
-    # collect all leaves and colors
+    # pre-compute reachability in network as dict[{v: descendants of v}]
+    reach = {n: nx.descendants(network, n) for n in network.nodes}
+    lca = lca_dict_from_network(network, reach, leaves)
+ 
+    graph = nx.DiGraph()
+    color = {}
     for v in leaves:
-        colors.add(network.nodes[v]["color"])
-        bmg.add_node(v, color=network.nodes[v]["color"])
-
-    lca_dict = lca_dict_from_network(network, reach, leaves)
-
-    # check bm property for each pair
-    delete_keys = set()
-    for x, y in lca_dict.keys():
-        # find all y' with same color as y
-        alt_y = [
-            u for u in leaves if network.nodes[u]["color"] == network.nodes[y]["color"]
-        ]
-        # iterate over lca(x, y')
-        for ay in alt_y:
-            lca_alt_y = lca_dict[(x, ay)]
-            for u in lca_alt_y:
-                for v in lca_dict[(x, y)]:
-                    if u in reach[v]:  # i.e. u<v
-                        delete_keys.add((x, y))
-    # delete all marked keys from dict
-    for x, y in delete_keys:
-        lca_dict.pop((x, y))
-
-    # add remaining bmg edges to bmg
-    for x, y in lca_dict:
-        bmg.add_edge(x, y)
-
-    return bmg
-
-
-def wbmg_from_network(
-    network: nx.DiGraph,
-) -> nx.DiGraph:
-    """Construct a WBMG from bic-network.
-
-    Args:
-        network: A network with leaves that has the `label` and `reconc` attribute set.
-
-    Returns:
-        The constructed WBMG with attributes `label` and `color`
-    """
-
-    leaves = leaves_from_network(network)
-    wbmg = nx.DiGraph()
-    colors = set()
-    reach = {
-        n: nx.descendants(network, n) for n in network.nodes
-    }  # pre-compute reachability in network as dict[{v:descendants of v}]
-
-    # collect all leaves and colors
+        color[v] = network.nodes[v]["color"]
+        graph.add_node(v, color=color[v])
+ 
+    by_color: dict = {}
     for v in leaves:
-        colors.add(network.nodes[v]["color"])
-        wbmg.add_node(v, color=network.nodes[v]["color"])
-
-    lca_dict = lca_dict_from_network(network, reach, leaves)
-
-    # check bm property for each pair
-    delete_keys = set()
-    for x, y in lca_dict.keys():
-        # compute Q
-        alt_y = [
-            n for n in leaves if network.nodes[n]["color"] == network.nodes[y]["color"]
-        ]
-        q = set()
-        for element in alt_y:
-            q |= lca_dict[(x, element)]
-        eliminate_q = set()
-        for u, v in permutations(q, 2):
-            if v in reach[u]:
-                eliminate_q.add(u)
-        q = q - eliminate_q
-        # check intersection of lca is non-empty
-        if len(set.intersection(lca_dict[(x, y)], q)) == 0:
-            delete_keys.add((x, y))
-    # delete all marked keys from dict
-    for x, y in delete_keys:
-        lca_dict.pop((x, y))
-
-    # add remaining wbmg edges to wbmg
-    for x, y in lca_dict:
-        wbmg.add_edge(x, y)
-
-    return wbmg
+        by_color.setdefault(color[v], []).append(v)
+ 
+    for x in leaves:
+        for tau, same_color in by_color.items():
+            if tau == color[x]:
+                continue
+ 
+            # U: every lca of x with a leaf of this color
+            union: set = set()
+            for y in same_color:
+                union |= lca[(x, y)]
+ 
+            if weak:
+                # Q(x, tau), the <=-minimal elements of U
+                q = {u for u in union if not (reach[u] & union)}
+                for y in same_color:
+                    if lca[(x, y)] & q:
+                        graph.add_edge(x, y)
+            else:
+                for y in same_color:
+                    if not any(reach[v] & union for v in lca[(x, y)]):
+                        graph.add_edge(x, y)
+    return graph
 
 # ---------------------------------------------------------------------------
 # Graph properties

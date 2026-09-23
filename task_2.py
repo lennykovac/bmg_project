@@ -1,6 +1,7 @@
 from utils.graph_utils import *
 from utils.tree_utils import create_gene_tree_n_leaves, import_good_trees
-from utils.bic_cherry import bic_cherry_expansion
+from utils.bic_cherry import bic_cherry_expansion, network_depth
+from utils.report import table
 from utils.lrt import (
     lrt_from_bmg,
     lrt_of_tree,
@@ -37,7 +38,7 @@ tree_lrt  = lrt_of_tree(tree)
 leaves = leaves_from_network(tree)
 for leaf in leaves:
     color = tree.nodes[leaf].get("color", "Keine Farbe")
-    print(f"Blatt {leaf!r} hat die Farbe/Spezies: {color}")
+    # print(f"Blatt {leaf!r} hat die Farbe/Spezies: {color}")
 
 '''
 (b) Take the tree-BMGs from (a) and construct the BIC-cherry+expansion
@@ -77,7 +78,7 @@ path_guarded: list = []
  
 # the reference is the WBMG of N itself -- NOT the tree's WBMG, which N does
 # not explain in the first place (see (b))
-wbmg_N = wbmg_from_network(N_bic_cherry)
+wbmg_N = bmg_from_network(N_bic_cherry, weak=True)
  
 N1_single = single_moves(N_bic_cherry, rng=0, record=path_single)
 N1_comb = combination(N_bic_cherry, k=3, rng=0, record=path_comb)
@@ -177,9 +178,9 @@ find out why they fail, and if possible use this information to improve
 the heuristic for editing schedules.
 '''
  
-if strict_search_fails(tree_bmg, expansion="plain"):
+if strict_search_fails(tree_bmg, restricted=False):
     # shrink THIS instance: drop leaves one at a time while the failure lasts
-    minimal = minimize_bmg(tree_bmg, lambda G: strict_search_fails(G, expansion="plain"))
+    minimal = minimize_bmg(tree_bmg, lambda G: strict_search_fails(G, restricted=False))
     origin = (f"    this instance fails; minimal counterexample has "
               f"{minimal.number_of_nodes()} leaves (from {tree_bmg.number_of_nodes()})")
 else:

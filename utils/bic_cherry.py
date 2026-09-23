@@ -121,3 +121,18 @@ def bic_cherry_expansion(
         network.add_edge(f"q:{x}|{z}", z)
 
     return network
+
+def network_depth(network: nx.DiGraph) -> int:
+    """Length of the longest root-to-leaf path.
+ 
+    The BIC-cherry network has depth 2 (``rho -> p_xy -> leaf``). Each
+    extension inserts a new vertex between ``p_xy`` and the leaves, so an
+    expansion that performs at least one extension has depth exactly 3. A
+    construction that reused an existing cherry vertex instead of creating
+    ``q_xz`` would leave the depth at 2 and perform no extension at all.
+    """
+    depth: dict = {}
+    for v in nx.topological_sort(network):
+        parents = list(network.predecessors(v))
+        depth[v] = 0 if not parents else max(depth[p] for p in parents) + 1
+    return max(depth.values()) if depth else 0
