@@ -1,13 +1,28 @@
 """
-Task 2.2(d): checker "does N' still explain the same (weak) best match
-graph as N?"
+Task 2.2(d)-(f): search for edit paths  BIC-cherry+expansion (N, sigma)  ->  T*.
 
-Task 2.2(e)/(f): search heuristic that applies pull_up_to_common_ancestor
-(to collapse multi-parent vertices) and the cleanup find_twin_vertices/
-remove_redundant_vertex + remove_useless_vertex (task 2.2c), each step
-guarded by `try_edit(..., still_valid=...)`, trying to bring the
-BIC-cherry+expansion network (N, sigma) as close to "tree-like" as
-possible without ceasing to explain the same (weak) BMG.
+State space
+-----------
+States are *normalized* networks (``graph_editing.normalize``: no dead,
+single-child or twin vertices, no shortcut edges -- all BMG-invariant).
+
+One search step = one structural edit (pull_up / pull_down / delete_parent_edge)
+followed by normalization, accepted only if the guard (same (weak) BMG as the
+start network, task 2.2(d)) holds.
+
+Target test
+-----------
+N equals T*  <=>  N is a phylogenetic tree with the same cluster set as T*
+(``graph_utils.same_phylogeny``). Because normalized networks have no twins
+and no single-child vertices, cluster distance 0 plus in-degree <= 1 is
+exactly that.
+
+Search
+------
+``edit_search``: beam search (beam width 1 = steepest descent) with a
+visited-set on canonical states, a step budget, and full edit-path logging
+so failures can be inspected (task 2.2(f)).
+
 """
 
 from dataclasses import dataclass, field
@@ -16,238 +31,248 @@ from typing import Callable, Hashable
 import networkx as nx
 
 from utils.graph_editing import (
-    find_twin_vertices,
+    contract_into_parents,
+    delete_parent_edge,
+    group_children,
+    make_guard,
+    merge_siblings,
+    normalize,
+    pull_down,
     pull_up,
     pull_up_to_common_ancestor,
-    remove_redundant_vertex,
-    remove_useless_vertex,
-    try_edit,
 )
-from utils.graph_utils import bmg_from_network, root_from_network, wbmg_from_network
-
-_BMG_COMPUTE = {
-    "bmg": bmg_from_network,      # strict (Def. 2.1, Ebert & Hellmuth)
-    "wbmg": wbmg_from_network,    # weak (projektdescription.pdf)
-}
+from utils.graph_utils import clusters, same_phylogeny
 
 
-def make_still_valid(mode: str = "wbmg") -> Callable[[nx.DiGraph, nx.DiGraph], bool]:
-    """Task 2.2(d). mode='wbmg' (default) or 'bmg'.
+# ---------------------------------------------------------------------------
+# scores
+# ---------------------------------------------------------------------------
 
-    Directly compares the edge sets of the BMG/WBMG induced by `before`
-    and by `after` -- no isomorphism check needed, since an edit
-    (pull_up/pull_down/remove_*) never renames leaves, it only
-    restructures internal vertices.
+def hybrid_excess(N: nx.DiGraph) -> int:
+    return sum(max(0, d - 1) for _, d in N.in_degree())
 
-    Returns a function to be used whereelse
-    """
 
-    if mode not in _BMG_COMPUTE:
-        raise ValueError(f"unknown mode: {mode!r} (use 'bmg' or 'wbmg')")
-    compute = _BMG_COMPUTE[mode]
+def inner_clusters(N: nx.DiGraph) -> set:
+    return {c for v, c in clusters(N).items() if N.out_degree(v) > 0}
 
-    def still_valid(before: nx.DiGraph, after: nx.DiGraph) -> bool:
-        return set(compute(before).edges()) == set(compute(after).edges())
 
-    return still_valid
+def make_score_guided(lrt: nx.DiGraph) -> Callable[[nx.DiGraph], int]:
+    target = inner_clusters(lrt)
 
+    # the lower the better
+    def score(N):
+        return len(inner_clusters(N) ^ target) + hybrid_excess(N)
+
+    return score
+
+
+def score_agnostic(N: nx.DiGraph) -> int:
+    return N.number_of_edges() + hybrid_excess(N)
+
+
+# ---------------------------------------------------------------------------
+# moves
+# ---------------------------------------------------------------------------
+
+def candidate_moves(N: nx.DiGraph, compound: bool = True):
+    """Yield (name, fn, args) for structural edits of N.
+
+    single moves: delete_parent_edge, pull_up / pull_down by one level.
+    compound moves (small fixed combinations of single moves, task 2.2(d)):
+      pull_up_to_common_ancestor(v, c) for hybrids v and c ∈ LCA(parents(v)),
+      contract_into_parents(v), merge_siblings(u, w) for siblings whose
+      clusters overlap (only those can be merged without creating a new
+      cluster that is disjoint-union-like; heuristic restriction)."""
+    if compound:
+        cl = clusters(N)
+        # collapse all parents of a hybrid onto a minimal common ancestor of them
+        for v in N.nodes:
+            parents = list(N.predecessors(v))
+            if len(parents) < 2:
+                continue
+            common = set.intersection(*(nx.ancestors(N, p) | {p} for p in parents))
+            for c in common:
+                if not any(ch in common for ch in N.successors(c)):
+                    yield ("collapse_parents", pull_up_to_common_ancestor, (v, c))
+        for v in N.nodes:
+            if N.out_degree(v) > 0 and N.in_degree(v) > 0:
+                yield ("contract", contract_into_parents, (v,))
+        for p in N.nodes:
+            kids = [c for c in N.successors(p) if N.out_degree(c) > 0]
+            for i, u in enumerate(kids):
+                for w in kids[i + 1:]:
+                    if cl[u] & cl[w]:
+                        yield ("merge", merge_siblings, (u, w))
+        for u in N.nodes:
+            kids = sorted(N.successors(u), key=str)
+            if len(kids) >= 3:
+                for i, c1 in enumerate(kids):
+                    for c2 in kids[i + 1:]:
+                        yield ("group", group_children, (u, c1, c2))
+    for u, v in N.edges:
+        if N.in_degree(v) >= 2:
+            yield ("delete_parent_edge", delete_parent_edge, (u, v))
+        for t in N.predecessors(u):                       # one level up
+            if not N.has_edge(t, v):
+                yield ("pull_up", pull_up, (u, v, t))
+        for t in N.successors(u):                         # one level down
+            if t != v and N.out_degree(t) > 0 and not N.has_edge(t, v):
+                yield ("pull_down", pull_down, (u, v, t))
+
+
+def canonical(N: nx.DiGraph) -> frozenset:
+    """Isomorphism-invariant key of a normalized network: its edges written as
+    (cluster(parent), cluster(child)) -- inner vertex names are irrelevant."""
+    cl = clusters(N)
+    return frozenset((cl[u], cl[v]) for u, v in N.edges)
+
+
+def neighbours(N: nx.DiGraph, leaves: set, compound: bool = True):
+    """All distinct normalized networks reachable by one (compound) move.
+    NOT guarded -- the search evaluates the guard lazily in score order."""
+    seen = set()
+    for name, fn, args in candidate_moves(N, compound):
+        M = N.copy()
+        try:
+            fn(M, *args)
+        except ValueError:
+            continue
+        normalize(M, leaves)
+        key = canonical(M)
+        if key in seen:
+            continue
+        seen.add(key)
+        yield (name, args), M, key
+
+
+# ---------------------------------------------------------------------------
+# search
+# ---------------------------------------------------------------------------
 
 @dataclass
 class SearchReport:
-    mode: str = "wbmg"
-    rounds_run: int = 0
-    resolved_hybrids: list = field(default_factory=list)   # [(vertex, ancestor_used), ...]
-    stuck_hybrids: list = field(default_factory=list)      # vertices where NO pull validated
-    twins_removed: int = 0
-    useless_removed: int = 0
-    is_tree: bool = False
+    mode: str
+    score_name: str
+    success: bool = False
+    steps: int = 0
+    evaluated: int = 0          # number of guard (BMG) evaluations
+    start_size: tuple = (0, 0)
+    final_size: tuple = (0, 0)
+    final_score: int = 0
+    final_is_tree: bool = False
+    path: list = field(default_factory=list)
 
 
-def _hybrid_vertices_by_depth(network: nx.DiGraph, root: Hashable) -> list:
-    """
-    Vertices with in-degree > 1 (what makes N a non-tree), ordered
-    from the root towards the leaves -- resolving the higher ones first
-    tends to simplify the lower ones for free.
-    """
-    depth = nx.single_source_shortest_path_length(network, root)
-    hybrids = [v for v in network.nodes if network.in_degree(v) > 1]
-    hybrids.sort(key=lambda v: depth.get(v, 0))
-    return hybrids
-
-
-def _candidate_ancestors(network: nx.DiGraph, v: Hashable, root: Hashable) -> list:
-    """
-    Candidates for `ancestor` in pull_up_to_common_ancestor(v, .).
-
-    A candidate `c` is valid iff, for EVERY current parent `p` of v:
-    c == p (already one of the parents -- pull_up_to_common_ancestor
-    skips this case) OR c is a proper ancestor of p. Important: a
-    candidate may be one of v's CURRENT parents itself (e.g.: v has
-    parents {R, q}; R is an ancestor of q, so ancestor=R is valid even
-    though R has no ancestors of its own
-
-    Sorted from closest to v (minimal pull, prioritizes reusing an
-    already-existing parent) to farthest (the root).
-    """
-    parents = list(network.predecessors(v))
-    if not parents:
-        return []
-
-    pool = set(parents)
-    for p in parents:
-        pool |= nx.ancestors(network, p)
-
-    def is_valid(c):
-        return all(c == p or nx.has_path(network, c, p) for p in parents)
-
-    valid = [c for c in pool if is_valid(c)]
-    depth = nx.single_source_shortest_path_length(network, root)
-    return sorted(valid, key=lambda a: -depth.get(a, 0))
-
-
-def _comparable_parent_pairs(network: nx.DiGraph, v: Hashable):
-    """
-    All pairs (descendant, ancestor) among v's CURRENT parents such
-    that one is a proper ancestor of the other (⪯-comparable).
-    """
-    parents = list(network.predecessors(v))
-    pairs = []
-    for p1 in parents:
-        for p2 in parents:
-            if p1 != p2 and nx.has_path(network, p2, p1):
-                pairs.append((p1, p2))  # p1 descends from p2 -> can be pulled up to p2
-    return pairs
-
-
-def _try_resolve_hybrid(network, v, root, still_valid):
-    """
-    Task 2.2(d)/(f) applied ONE SINGLE MOVE at a time, in two phases:
-
-    Phase 1 (preferred, found empirically): if two of v's CURRENT parents
-    are already comparable to each other (one an ancestor of the other),
-    perform only THAT targeted pull_up -- reduces v's in-degree by 1
-    without touching the rest of the structure. Repeats until no
-    comparable pairs remain.
-
-    Phase 2 (fallback, more aggressive): only when NO parent pair is
-    comparable, try pull_up_to_common_ancestor(v, ancestor) for a common
-    ancestor of ALL parents (in these graphs that is usually the root,
-    which typically changes the LCA structure too much and fails
-    still_valid -- see the 2.2(f) note in this module).
-    """
-
-    progressed = True
-    last_result, last_target = None, None
-    while progressed:
-        progressed = False
-        for p_desc, p_anc in _comparable_parent_pairs(network, v):
-            result, applied = try_edit(
-                network, pull_up, p_desc, v, target=p_anc, still_valid=still_valid
-            )
-            if applied:
-                network = result
-                last_result, last_target = result, p_anc
-                progressed = True
-                break  # v's parents changed -> recompute pairs from scratch
-
-    if network.in_degree(v) <= 1:
-        return last_result if last_result is not None else network, last_target
-
-    for candidate_ancestor in _candidate_ancestors(network, v, root):
-        result, applied = try_edit(
-            network, pull_up_to_common_ancestor, v, candidate_ancestor,
-            still_valid=still_valid,
-        )
-        if applied:
-            return result, candidate_ancestor
-
-    return (last_result, last_target) if last_result is not None else (None, None)
-
-
-def _cleanup_pass(network, still_valid):
-    """
-    One round of find_twin_vertices/remove_redundant_vertex and
-    remove_useless_vertex, each application guarded by try_edit.
-    """
-
-    n_twins = 0
-    changed = True
-    while changed:
-        changed = False
-        for group in find_twin_vertices(network):
-            # keep the first one in the group, try to remove the rest
-            for u in group[1:]:
-                result, applied = try_edit(
-                    network, remove_redundant_vertex, u, still_valid=still_valid
-                )
-                if applied:
-                    network = result
-                    n_twins += 1
-                    changed = True
-                    break
-            if changed:
-                break
-
-    n_useless = 0
-    changed = True
-    while changed:
-        changed = False
-        candidates = [
-            v for v in network.nodes
-            if network.in_degree(v) == 1 and network.out_degree(v) == 1
-        ]
-        for v in candidates:
-            result, applied = try_edit(
-                network, remove_useless_vertex, v, still_valid=still_valid
-            )
-            if applied:
-                network = result
-                n_useless += 1
-                changed = True
-                break
-
-    return network, n_twins, n_useless
-
-
-def reduce_to_tree(
-    network: nx.DiGraph, mode: str = "wbmg", max_rounds: int = 50
+def edit_search(
+    network: nx.DiGraph,
+    lrt: nx.DiGraph,
+    mode: str = "bmg",
+    guided: bool = True,
+    beam_width: int = 1,
+    max_steps: int = 500,
+    compound: bool = True,
 ) -> tuple[nx.DiGraph, SearchReport]:
-    """
-    Main heuristic for tasks 2.2(e)/(f).
+    """Search an edit path from ``network`` to ``lrt``.
 
-    mode: 'wbmg' (default) or 'bmg' -- which (weak) BMG the network must
-          keep explaining at every step (task 2.2d, via make_still_valid).
+    The LRT is used for the success test in every case, and additionally as
+    the objective if ``guided`` is True."""
+    leaves = {v for v in network if network.out_degree(v) == 0}
+    guard = make_guard(network, mode)
+    score = make_score_guided(lrt) if guided else score_agnostic
+    rep = SearchReport(mode=mode, score_name="guided" if guided else "agnostic")
 
-    Returns (reduced_network, SearchReport).
-    """
-    still_valid = make_still_valid(mode)
-    root = root_from_network(network)
-    report = SearchReport(mode=mode)
-    stuck: set = set()
+    N = network.copy()
+    normalize(N, leaves)
+    rep.start_size = (N.number_of_nodes(), N.number_of_edges())
+    if not guard(N):  # cannot happen for invariant edits; kept as a safety net
+        raise AssertionError("normalize changed the BMG")
 
-    for round_i in range(max_rounds):
-        report.rounds_run = round_i + 1
-        any_change = False
+    beam = [(score(N), N, [])]
+    visited = {canonical(N)}
+    guard_cache: dict = {}
+    best = beam[0]
 
-        for v in _hybrid_vertices_by_depth(network, root):
-            if v in stuck or network.in_degree(v) <= 1:
-                continue
-            result, used_ancestor = _try_resolve_hybrid(network, v, root, still_valid)
-            if result is not None:
-                network = result
-                report.resolved_hybrids.append((v, used_ancestor))
-                any_change = True
-            else:
-                stuck.add(v)
-
-        network, n_twins, n_useless = _cleanup_pass(network, still_valid)
-        report.twins_removed += n_twins
-        report.useless_removed += n_useless
-        any_change = any_change or n_twins > 0 or n_useless > 0
-
-        if not any_change:
+    for step in range(max_steps):
+        if same_phylogeny(best[1], lrt):
             break
+        pool = []
+        for _, B, path in beam:
+            for move, M, key in neighbours(B, leaves, compound):
+                if key in visited:
+                    continue
+                pool.append((score(M), M.number_of_edges(), key, M, path + [move]))
+        pool.sort(key=lambda t: (t[0], t[1]))
+        # lazy guard: only as many BMG checks as needed to fill the beam;
+        # results are cached, a state is only marked visited once it was
+        # actually selected (unchecked states stay available for later steps)
+        new_beam, chosen = [], set()
+        for sc, _, key, M, path in pool:
+            if key in chosen:
+                continue
+            if key not in guard_cache:
+                rep.evaluated += 1
+                guard_cache[key] = guard(M)
+            if guard_cache[key]:
+                new_beam.append((sc, M, path))
+                chosen.add(key)
+                if len(new_beam) == beam_width:
+                    break
+        visited |= chosen
+        if not new_beam:
+            break
+        beam = new_beam
+        rep.steps = step + 1
+        if (beam[0][0], beam[0][1].number_of_edges()) < (best[0], best[1].number_of_edges()):
+            best = beam[0]
+        elif beam_width == 1 and beam[0][0] > best[0] + 3:
+            break  # wandered too far uphill
 
-    report.stuck_hybrids = sorted(stuck, key=str)
-    report.is_tree = all(network.in_degree(v) <= 1 for v in network.nodes)
-    return network, report
+    s, N, path = best
+    rep.success = same_phylogeny(N, lrt)
+    rep.final_score = s
+    rep.final_size = (N.number_of_nodes(), N.number_of_edges())
+    rep.final_is_tree = all(d <= 1 for _, d in N.in_degree())
+    rep.path = path
+    return N, rep
+
+
+# ---------------------------------------------------------------------------
+# simple T*-agnostic greedy
+# ---------------------------------------------------------------------------
+
+def reduce_to_tree(network: nx.DiGraph, mode: str = "bmg", max_rounds: int = 1000):
+    """Greedy hybrid resolution: repeatedly delete an in-edge of a hybrid
+    vertex (highest first) or pull it one level up, whenever the guard
+    accepts; normalize after each accepted edit. Stuck vertices are retried
+    after every change. Returns (network, number_of_accepted_edits)."""
+    leaves = {v for v in network if network.out_degree(v) == 0}
+    guard = make_guard(network, mode)
+    N = network.copy()
+    normalize(N, leaves)
+    accepted = 0
+    for _ in range(max_rounds):
+        root = next(v for v in N if N.in_degree(v) == 0)
+        depth = nx.single_source_shortest_path_length(N, root)
+        hybrids = sorted((v for v in N if N.in_degree(v) > 1), key=lambda v: depth.get(v, 0))
+        progressed = False
+        for v in hybrids:
+            for u in sorted(N.predecessors(v), key=lambda p: -depth.get(p, 0)):
+                options = [(delete_parent_edge, (u, v))] + [(pull_up, (u, v, t)) for t in N.predecessors(u)]
+                for fn, args in options:
+                    M = N.copy()
+                    try:
+                        fn(M, *args)
+                    except ValueError:
+                        continue
+                    normalize(M, leaves)
+                    if guard(M):
+                        N, progressed = M, True
+                        accepted += 1
+                        break
+                if progressed:
+                    break
+            if progressed:
+                break
+        if not progressed:
+            break
+    return N, accepted

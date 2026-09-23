@@ -1,8 +1,6 @@
 """
 Utilities for working nx.DiGraphs.
 
-One visulizezer functions and a few other handy utilities should be collected here.
-
 """
 
 import random
@@ -20,28 +18,10 @@ def show_graph(di_graph: nx.DiGraph):
     Shows u a neat graph view of the DAG
     """
     nt = Network("1000px", "1000px", directed=True)
-    # pyvis reads "color" as a CSS color, so work on a copy to keep the original attribute intact
-    di_graph = di_graph.copy()
-
-    palette = ["#e74c3c", "#3498db"]
-    distinct_colors = sorted(
-        {c for c in nx.get_node_attributes(di_graph, "color").values() if c is not None},
-        key=str,
-    )
-    if len(distinct_colors) > len(palette):
-        raise ValueError(
-            f"show_graph supports at most {len(palette)} colors, got {len(distinct_colors)}"
-        )
-    color_map = dict(zip(distinct_colors, palette))
 
     for node, node_data in di_graph.nodes(data=True):
         node_data["label"] = str(node)
-        color_value = node_data.pop("color", None)
-        if color_value is not None:
-            node_data["color"] = color_map[color_value]
         title_parts = []
-        if color_value is not None:
-            title_parts.append(f"color: {color_value}")
         if "reconc" in node_data:
             reconc_value = node_data["reconc"]
             title_parts.append(f"reconc: {reconc_value}")
@@ -67,131 +47,113 @@ def print_graph_diff(g1, g2):
     print("Only in g2:", set(g2.edges) - set(g1.edges))
 
 
-
-
-def print_compare_bmg(orig_network, bmg, rec_network,pairs, extend_pairs, new_bmg):
-    print("\n ---- Ursprüngliches Netzwerk N ----")
-    print("Knoten:", list(orig_network.nodes(data=True)))
-    print("Kanten:", list(orig_network.edges()))
-
-    print("\n--- BMG edges ---")
-    print("bmg edges:", set(bmg.edges()))
-
-    print("\n ---- Rekonstruiertes Netzwerk N --- '")
-    print("Knoten:", list(rec_network.nodes(data=True)))
-    print("Kanten:", list(rec_network.edges()))
-
-    print("\n--- new BMG edges ---")
-    print("new_bmg edges:", set(new_bmg.edges()))
-
-    print("\n--- Edge differences---")
-    print("Only in bmg:", set(bmg.edges()) - set(new_bmg.edges()))
-    print("Only in new_bmg:", set(new_bmg.edges()) - set(bmg.edges()))
-
-    print("\n--- pairs ---")
-    print("pairs:", set(pairs))
-
-    print("\n--- extented pairs ---")
-    print("extend_pairs:", set(extend_pairs))
-
-
-def insert_node_on_edge(node_for_adding: Any, edge: Tuple[Any, Any], G: nx.DiGraph):
-    """
-    Inserts a node onto an edge and removes the old redundant edge
-    Function is inplace!
-
-    Parameters:
-    node_for_adding: New node
-    edge: on which the node should en placed
-    G: Directed Graph
-    """
-    parent_node = edge[0]
-    child_node = edge[1]
-    # add new node (to set color to none do this explicitly!)
-    G.add_node(node_for_adding, color=None)
-    # add edge from parent_node to new_node
-    G.add_edge(parent_node, node_for_adding)
-    # add edge from new_node to child_node
-    G.add_edge(node_for_adding, child_node)
-    # remove old edge
-    G.remove_edge(parent_node, child_node)
-
-
-# TODO: Check over dist. attribute in node if we have a cycle
+###############################################################################
+# Hybridization
+###############################################################################
 def add_hybrid_node(
     donor_edge: Tuple[Any, Any],
     hybrid_edge: Tuple[Any, Any],
     donor: Any,
     hybrid: Any,
     G: nx.DiGraph,
-):
+) -> bool:
     """
     Connects 2 nodes on 2 edges with each other and creates one hybrid node!
+    Function is inplace, but only touches G if it returns True.
 
     Parameters:
     donor_edge: Edge on which the donor node is placed
     hybrid_edge: Edge on which the hybrid now is placed (it has two parents)
     donor: donor node which "donates" an edge
     hybrid: hybrid node which gets another parent (donor)
+    G: Directed Graph
+
+    Returns:
+    True if the hybrid node was inserted, False if the pair of edges was
+    refused because it would have closed a cycle. The caller counts.
     """
-    # we have to check if a path exists from the source of the donor edge to the source of the hybrid edge
-    if nx.has_path(G, hybrid_edge[0], donor_edge[0]):
-        return
-        #print("Cant insert hybrid node")
-        # raise Exception("Cant insert hybrid. It would make the Graph cyclic.")
-    else:
-        # first insert donor to donor_edge
-        insert_node_on_edge(donor, donor_edge, G)
-        # second insert hybrid to hybrid_edge
-        insert_node_on_edge(hybrid, hybrid_edge, G)
-        # third add edge between donor and hybrid
-        G.add_edge(donor, hybrid)
+    # after the insertion the only parent of donor is donor_edge[0] and the
+    # only child of hybrid is hybrid_edge[1], so the new donor -> hybrid edge
+    # closes a cycle exactly if hybrid can already reach donor. Subdividing an
+    # edge keeps reachability
+    if nx.has_path(G, hybrid_edge[1], donor_edge[0]):
+        return False
+    # validate everything up front, the two inserts below run one after the
+    # other, so a failing second insert would leave the donor behind
+    for edge in (donor_edge, hybrid_edge):
+        if not G.has_edge(*edge):
+            raise ValueError(f"{edge} is not an edge of G")
+    if donor_edge == hybrid_edge:
+        raise ValueError("donor_edge and hybrid_edge must be different edges")
+    for node in (donor, hybrid):
+        if node in G:
+            raise ValueError(f"{node} is already a vertex of G")
+    if donor == hybrid:
+        raise ValueError("donor and hybrid need different names")
+
+    if nx.has_path(G, hybrid_edge[1], donor_edge[0]):
+        return False
+
+    # first insert donor to donor_edge
+    insert_node_on_edge(donor, donor_edge, G)
+    # second insert hybrid to hybrid_edge
+    insert_node_on_edge(hybrid, hybrid_edge, G)
+    # third add edge between donor and hybrid
+    G.add_edge(donor, hybrid)
+    return True
 
 
-# TODO: Naiv implementation for now we have to sort out a strategy
-def transform(graph: nx.DiGraph, no_of_hybrid_nodes: int) -> nx.DiGraph:
+def transform(graph: nx.DiGraph, num_of_hybrid_nodes: int, attempts = 7) -> nx.DiGraph:
     """
-    GOAL: Edit a bicolored tree into a phylogenetic network by inserting random hybridization vertices
-    We dont want this inplace i guess.
+    Edit a bicolored tree into a phylogenetic network by inserting random hybridization vertices
+    This is not inplace, so the original network will be conserved.
 
     Parameters:
     di_graph: The di_graph on which the hybrid nodes will be inserted
-    no_of_hybrid_nodes: The amount of hybrid nodes we would like to have
+    num_of_hybrid_nodes: The amount of hybrid nodes we would like to have, cant be guaranteed.
+    attempts: number of refused edge pairs we tolerate before we stop
+        inserting nodes, default 7 (cuz i like the number)
 
     Returns:
     A nx.DiGraph object.
     """
+    # number of succesful inserts
+    insertions = 0
+    # keep old data intact
+    transformer_graph = graph.copy()
+    # a refused pair of edges costs budget, a successful one does not, so we
+    # really get num_of_hybrid_nodes as long as the graph allows it
+    budget = attempts
 
-    transformer_graph = graph
-    # get all edges
-    edge_list = graph.edges
+    # names of the inserted vertices, counts on past the ones an earlier
+    # transform() call may already have put into this graph
+    label = 0
 
-    # warum gibt es in python keine saubere funtion um zwei verschiedene elemente aus einer liste zu samplen!?
-    for i in range(no_of_hybrid_nodes):
-        e0, e1 = random.sample(edge_list, 2)
+    while insertions < num_of_hybrid_nodes and budget > 0:
+        # fresh pull out of the Urne :D , the edges change with every insertion
+        edge_list = list(transformer_graph.edges)
+        if len(edge_list) < 2:
+            break
 
-        # TODO: Think of a naming convention for hybrid nodes.
-        add_hybrid_node(e0, e1, f"{i}_d", f"{i}_h", transformer_graph)
+        donor, hybrid = f"{label}_d", f"{label}_h"
+        while donor in transformer_graph or hybrid in transformer_graph:
+            label += 1
+            donor, hybrid = f"{label}_d", f"{label}_h"
 
+        # sample two random edges
+        donor_e, hybrid_e = random.sample(edge_list, 2)
+        if add_hybrid_node(donor_e, hybrid_e, donor, hybrid, transformer_graph):
+            insertions += 1
+            label += 1
+        else:
+            budget -= 1
+
+    print(f"Number of succesfull insertions: {insertions}")
     return transformer_graph
 
-
-def root_from_network(network: nx.DiGraph) -> Hashable:
-
-    roots = [n for n in network.nodes() if network.in_degree(n) == 0]
-
-    if len(roots) != 1:
-        raise ValueError(f"Expected exactly one root, found {len(roots)}")
-
-    root = roots[0]
-
-    return root
-
-
-def leaves_from_network(network: nx.DiGraph) -> list[Hashable]:
-
-    return [n for n in network.nodes() if network.out_degree(n) == 0]
-
+###############################################################################
+# BEST MATCHES and WEAK BEST MATCHES
+###############################################################################
 
 def lca_dict_from_network(
     network: nx.DiGraph,
@@ -237,10 +199,6 @@ def lca_dict_from_network(
         lca_dict.update({(x, y): lca})
 
     return lca_dict
-
-
-
-
 
 
 def bmg_from_network(
@@ -292,22 +250,6 @@ def bmg_from_network(
         bmg.add_edge(x, y)
 
     return bmg
-
-
-def print_lca_dict(network: nx.DiGraph):
-    leaves = [node for node in network.nodes if network.out_degree(node) == 0]
-
-    reach = {
-        n: nx.descendants(network, n) for n in network.nodes
-    }
-
-    lca_dict = lca_dict_from_network(network, reach, leaves)
-    print(f"{'(x, y)'} | {'LCA'}")
-    print("-" * 40)
-
-    for (x, y), lcas in lca_dict.items():
-        lca_str = ", ".join(map(str, sorted(lcas)))
-        print(f"({x}, {y}): | {lca_str}")
 
 
 def wbmg_from_network(
@@ -364,36 +306,52 @@ def wbmg_from_network(
 
     return wbmg
 
+# ---------------------------------------------------------------------------
+# Graph properties
+# ---------------------------------------------------------------------------
 
-# used in testing if bmg/wbmg_from_network works correctly
-def check_sicorinhub(G: nx.DiGraph):
-    """
-    Checks if given DiGraph has the sicor-in-hub property.
-
-    Parameters:
-    G: DiGraph with no self-loops! BMGs and WBMGs should not have self loops.
-
-    Returns:
-    Boolean value True, iff G has sicor-in-hub property.
-    """
-    color_counts = Counter(nx.get_node_attributes(G, "color").values())
-    unique_nodes = [n for n, d in G.nodes(data=True) if color_counts[d["color"]] == 1]
-    for n in unique_nodes:
-        # because no Multigraph and self-loop-free
-        if G.in_degree(n) != G.number_of_nodes() - 1:
+def check_color_sink_free(G: nx.DiGraph) -> bool:
+    """Every vertex has an out-neighbor of every other color."""
+    colors = set(nx.get_node_attributes(G, "color").values())
+    for x in G.nodes:
+        own = G.nodes[x]["color"]
+        seen = {G.nodes[y]["color"] for y in G.successors(x)}
+        if seen != colors - {own}:
             return False
     return True
 
+# ---------------------------------------------------------------------------
+# Comparing phylogenies
+# ---------------------------------------------------------------------------
 
-if __name__ == "__main__":
-    """
-    EXAMPLES:
-    """
+def clusters(network: nx.DiGraph) -> dict:
+    """ leaves of the subtree"""
+    """vertex -> frozenset of leaf descendants (cluster C(v))."""
+    leaves = {v for v in network.nodes if network.out_degree(v) == 0}
+    out = {}
+    for v in reversed(list(nx.topological_sort(network))):
+        if v in leaves:
+            out[v] = frozenset([v])
+        else:
+            out[v] = frozenset().union(*(out[c] for c in network.successors(v)))
+    return out
 
-    G = nx.read_gml("../tests/gene_tree_test_file.gml")
 
-    show_graph(G)
+def is_phylogenetic_tree(network: nx.DiGraph) -> bool:
+    """Rooted tree (single root, in-degree <= 1) and no inner vertex with one child."""
+    if network.number_of_nodes() == 0 or not nx.is_directed_acyclic_graph(network):
+        return False
+    roots = [v for v in network if network.in_degree(v) == 0]
+    if len(roots) != 1 or any(network.in_degree(v) > 1 for v in network):
+        return False
+    return all(network.out_degree(v) != 1 for v in network)
 
-    G_Transformed = transform(G, 5)
 
-    show_graph(G_Transformed)
+def same_phylogeny(n1: nx.DiGraph, n2: nx.DiGraph) -> bool:
+    """Leaf-labelled isomorphism of two phylogenetic TREES.
+
+    A phylogenetic tree is uniquely determined by its hierarchy of clusters
+    (Semple & Steel 2003, Prop. 2.1), so comparing cluster sets suffices."""
+    if not (is_phylogenetic_tree(n1) and is_phylogenetic_tree(n2)):
+        return False
+    return set(clusters(n1).values()) == set(clusters(n2).values())

@@ -3,274 +3,291 @@ from typing import Any, Hashable, Optional
 
 import networkx as nx
 
-def _is_leaf(network: nx.DiGraph, v) -> bool:
+from utils.graph_utils import bmg_from_network, wbmg_from_network
+
+
+def _is_leaf(network: nx.DiGraph, v: Hashable) -> bool:
     return network.out_degree(v) == 0
 
 def _is_root(network: nx.DiGraph, v) -> bool:
     return network.in_degree(v) == 0
 
 
-def _reattach(network: nx.DiGraph, old_source, new_source, v) -> nx.DiGraph:
-    """Move the edge (old_source, v) so it becomes (new_source, v),
-    refusing the move if it would create a self-loop or a cycle.
+# ---------------------------------------------------------------------------
+# (B) structural edits
+# ---------------------------------------------------------------------------
 
-    Both pull_up and pull_down are this same graph operation; what tells
-    them apart is only the *direction* they require new_source to lie in
-    relative to old_source (checked by the callers below).
-    """
-    if not network.has_node(new_source):
-        raise ValueError(f"new_source {new_source!r} does not exist in the network")
+def _reattach(network: nx.DiGraph, u: Hashable, v: Hashable, target: Hashable) -> None:
+    """Remove (u, v), add (target, v), in place.
 
-    if not network.has_edge(old_source, v):
-        raise ValueError(f"no edge ({old_source!r}, {v!r}) to reattach")
-
-    if new_source == v:
-        raise ValueError("cannot reattach an edge to point from a vertex to itself")
-
-    if nx.has_path(network, v, new_source):
-        raise ValueError(
-            f"reattaching ({old_source!r}, {v!r}) to source {new_source!r} "
-            "would create a cycle"
-        )
-
-
-    '''
-    candidate = network.copy()
-    candidate.remove_edge(old_source, v)
-    candidate.add_edge(new_source, v)
-    if not nx.is_directed_acyclic_graph(candidate):
-        raise ValueError(
-            f"reattaching ({old_source!r}, {v!r}) to source {new_source!r} "
-            "would create a cycle"
-        )
-    '''
-
-    network.remove_edge(old_source, v)
-    network.add_edge(new_source, v)
-
-    return network
-
-
-def pull_up(network: nx.DiGraph, u, v, target=None) -> nx.DiGraph:
-    """"Pull up" the edge (u, v): reattach it so v's parent becomes
-    `target` -- an ancestor of u, i.e. strictly closer to the root --
-    instead of u.
-
-    If `target` is omitted, defaults to u's own parent (the smallest
-    possible pull, sliding the attachment exactly one level up); this
-    requires u to have exactly one parent, otherwise it's ambiguous and
-    must be given explicitly.
-    """
-
-    #prüfe ob v leaf ist, falls ja würde u zu einem leaf werden, was wir nicht wollen oder?
-    if _is_leaf(network, v):
-        raise ValueError(f"refusing to pull up edge to leaf {v!r}")
-
-    if target is None:
-        candidates = list(network.predecessors(u))
-        if len(candidates) != 1:
-            raise ValueError(
-                f"{u!r} has {len(candidates)} parent(s); pass `target` explicitly"
-            )
-        target = candidates[0]
-
-    '''''
-    if target != u and not nx.has_path(network, target, u):
-        raise ValueError(f"{target!r} is not an ancestor of {u!r} -- not a pull *up*")
-    '''
-
-    # richtig für target == u
-    if target == u or not nx.has_path(network, target, u):
-        raise ValueError(f"{target!r} is not an ancestor of {u!r} -- not a pull *up*")
-
-
-    return _reattach(network, u, target, v)
-
-
-def pull_down(network: nx.DiGraph, u, v, target) -> nx.DiGraph:
-    """"Pull down" the edge (u, v): reattach it so v's parent becomes
-    `target` -- a descendant of u, i.e. strictly closer to the leaves --
-    instead of u.
-
-    Unlike pull_up there's no sensible default `target` (u may have many
-    children reachable below it), so it must always be given explicitly.
-    """
-    # falls target ein Blatt ist würde es durch die pull_down operation die Eigenschaft verlieren
+    If (target, v) already exists this is simply the deletion of (u, v),
+    i.e. the in-degree of v drops by one."""
+    if target == v:
+        raise ValueError(f"target ({target!r}) cannot be v itself")
     if _is_leaf(network, target):
-        raise ValueError(f"refusing to pull down to leaf target {target!r}")
+        raise ValueError(f"target {target!r} is a leaf")
+    if nx.has_path(network, v, target):
+        raise ValueError(f"reattaching ({u!r}, {v!r}) to {target!r} would close a cycle")
+    network.remove_edge(u, v)
+    network.add_edge(target, v)
 
+
+def pull_up(network: nx.DiGraph, u: Hashable, v: Hashable, target: Optional[Hashable] = None) -> None:
+    """Reattach (u, v) to an ANCESTOR ``target`` of u (default: u's only parent)."""
+    if not network.has_edge(u, v):
+        raise ValueError(f"No edge ({u!r}, {v!r}) in the network")
+    if target is None:
+        parents = list(network.predecessors(u))
+        if len(parents) != 1:
+            raise ValueError(f"target=None requires {u!r} to have exactly 1 parent (has {len(parents)})")
+        target = parents[0]
+    if target == u or not nx.has_path(network, target, u):
+        raise ValueError(f"{target!r} is not an ancestor of {u!r}")
+    _reattach(network, u, v, target)
+
+
+def pull_down(network: nx.DiGraph, u: Hashable, v: Hashable, target: Hashable) -> None:
+    """Reattach (u, v) to a (non-leaf) DESCENDANT ``target`` of u."""
+    if not network.has_edge(u, v):
+        raise ValueError(f"No edge ({u!r}, {v!r}) in the network")
     if target == u or not nx.has_path(network, u, target):
-        raise ValueError(f"{target!r} is not a descendant of {u!r} -- not a pull *down*")
-
-    return _reattach(network, u, target, v)
-
-
-def pull_up_to_common_ancestor(network: nx.DiGraph, v, ancestor) -> nx.DiGraph:
-    """Collapse ALL of v's current parents into a single edge from
-    `ancestor`. This is the concrete move that turns a many-parents vertex
-    (the non-tree-like part of a BIC-cherry+extension network) into a
-    single-parent one.
-
-    `ancestor` must be an ancestor of every one of v's current parents
-    (each individual reattachment is delegated to `pull_up`, which
-    enforces this and raises otherwise).
-    """
-    for u in list(network.predecessors(v)):
-        if u != ancestor:
-            pull_up(network, u, v, target=ancestor)
-    return network
-
-'''
-def _is_leaf(network: nx.DiGraph, v) -> bool:
-    return network.nodes[v].get("kind") == "leaf"
-'''
+        raise ValueError(f"{target!r} is not a descendant of {u!r}")
+    _reattach(network, u, v, target)
 
 
-def find_twin_vertices(network: nx.DiGraph) -> list:
-    """Group internal (non-leaf) vertices that share both the same parent
-    set and the same child set -- vertices that play the exact same
-    structural role twice. Returns a list of groups (each a list of >= 2
-    node names); leaves are never included, since they're data, not
-    editable structure.
-    """
-    groups = defaultdict(list)
-
-    for v in network.nodes():
-        if _is_leaf(network, v):
-            continue
-
-        key = (frozenset(network.predecessors(v)), frozenset(network.successors(v)))
-        groups[key].append(v)
-    return [sorted(vs, key=str) for vs in groups.values() if len(vs) > 1]
+def delete_parent_edge(network: nx.DiGraph, u: Hashable, v: Hashable) -> None:
+    """Delete (u, v) if v keeps at least one other parent (hybrid resolution)."""
+    if not network.has_edge(u, v):
+        raise ValueError(f"No edge ({u!r}, {v!r}) in the network")
+    if network.in_degree(v) < 2:
+        raise ValueError(f"{v!r} would lose its only parent")
+    network.remove_edge(u, v)
 
 
-def remove_redundant_vertex(network: nx.DiGraph, v) -> nx.DiGraph:
-    """Remove an internal vertex `v` that has a twin (some other vertex
-    with the exact same parents and the exact same children). Nothing
-    needs to be rewired: the twin already provides every path `v` did.
-
-    Raises ValueError if `v` is a leaf, a root, or has no twin -- use
-    `remove_useless_vertex` instead for a (1 parent, 1 child) vertex that
-    has no such duplicate to fall back on.
-    """
-    if _is_leaf(network, v):
-        raise ValueError(
-            f"refusing to remove leaf {v!r} -- leaves are data, not structure"
-        )
-
-    if _is_root(network, v):
-        raise ValueError(
-            f"refusing to remove root {v!r} -- roots are data, not structure"
-        )
-
-    v_parents = set(network.predecessors(v))
-    v_children = set(network.successors(v))
-
-    # Suche nur über Geschwister -> haben garantiert einen gemeinsamen Elter
-    one_parent = next(iter(v_parents))
-    candidates = network.successors(one_parent)
-
-    has_twin = any(
-        u != v
-        and not _is_leaf(network, u)
-        and not _is_root(network, u)
-        and set(network.predecessors(u)) == v_parents
-        and set(network.successors(u)) == v_children
-        for u in candidates
-    )
-
-    if not has_twin:
-        raise ValueError(
-            f"{v!r} has no twin (same parents and children) to fall back on"
-        )
-
-    network.remove_node(v)
-    return network
-
-
-def remove_useless_vertex(network: nx.DiGraph, v) -> nx.DiGraph:
-    """Remove a vertex `v` with exactly one parent and one child -- it
-    represents no branching, so it's suppressed by connecting its parent
-    directly to its child instead.
-    """
-    if _is_leaf(network, v):
-        raise ValueError(f"refusing to suppress leaf {v!r}")
-
-    parents = list(network.predecessors(v))
-    children = list(network.successors(v))
-    if len(parents) != 1 or len(children) != 1:
-        raise ValueError(
-            f"{v!r} has {len(parents)} parent(s) and {len(children)} child(ren); "
-            "can only suppress a vertex with exactly one of each"
-        )
-
-    parent, child = parents[0], children[0]
-    network.remove_node(v)
-    network.add_edge(parent, child)
-    return network
+def pull_up_to_common_ancestor(network: nx.DiGraph, v: Hashable, ancestor: Hashable) -> None:
+    """Collapse ALL parents of v onto ``ancestor`` (a common ancestor of them)."""
+    for p in list(network.predecessors(v)):
+        if p != ancestor:
+            pull_up(network, p, v, target=ancestor)
 
 
 def contract_edge(network: nx.DiGraph, u: Hashable, v: Hashable) -> None:
-    """
-    Contracts the INTERNAL edge (u, v): v disappears, and u directly inherits all of v's children.
-
-    Used to build the LRT starting from ANY tree that explains a BMG
-
-    Only meaningful on TREES (v with exactly 1 parent) -- unlike
-    pull_up/pull_down, which reattach an edge while preserving both
-    vertices, contract_edge merges the two vertices into ONE.
-
-    Raises ValueError if:
-      - (u, v) is not an edge of the network;
-      - v is a leaf (contracting an EXTERNAL edge would remove a leaf,
-        changing the leaf set);
-      - v has more than 1 parent (contraction is only well-defined when
-        v has exactly 1 parent, which always holds in trees).
-    """
+    """Contract inner edge (u, v): v disappears, u inherits v's children.
+    Requires in-degree(v) == 1."""
     if not network.has_edge(u, v):
         raise ValueError(f"No edge ({u!r}, {v!r}) in the network")
     if _is_leaf(network, v):
-        raise ValueError(
-            f"{v!r} is a leaf; only INTERNAL edges can be contracted"
-        )
+        raise ValueError(f"{v!r} is a leaf; only INTERNAL edges can be contracted")
     if network.in_degree(v) != 1:
-        raise ValueError(
-            f"contract_edge only applies when {v!r} has exactly 1 parent "
-            f"(has {network.in_degree(v)}) -- use pull_up/pull_down on networks"
-        )
-
+        raise ValueError(f"contract_edge requires {v!r} to have exactly 1 parent")
     children = list(network.successors(v))
     network.remove_node(v)
-    for child in children:
-        network.add_edge(u, child)
+    network.add_edges_from((u, c) for c in children)
 
 
-def try_edit(network: nx.DiGraph, edit_fn, *args, still_valid=None, **kwargs):
-    """Apply `edit_fn(candidate, *args, **kwargs)` to a *copy* of
-    `network`, keeping the result only if it's still a DAG and -- when
-    `still_valid` is given -- `still_valid(network, candidate)` holds
-    (e.g. "network and candidate explain the same weak best match graph",
-    task 2.2(d)'s checker, once implemented).
+def transfer_edge(network: nx.DiGraph, u: Hashable, v: Hashable, via: Hashable, target: Hashable) -> None:
+    """2-move combination: pull_up (u, v) to a parent ``via`` of u, then
+    pull_down (via, v) to another child ``target`` of via  (v changes from
+    child of u to child of its "uncle"/sibling-vertex target)."""
+    if not network.has_edge(via, u):
+        raise ValueError(f"{via!r} is not a parent of {u!r}")
+    if not network.has_edge(via, target) or target == u:
+        raise ValueError(f"{target!r} is not another child of {via!r}")
+    pull_up(network, u, v, target=via)
+    pull_down(network, via, v, target=target)
 
-    `network` itself is never mutated. Returns (result, applied): on
-    success `result` is the edited copy and `applied` is True; on
-    rejection `result` is the original `network` and `applied` is False.
-    Any ValueError raised by `edit_fn` itself (an invalid pull, an
-    un-suppressible vertex, ...) is treated the same as a rejection rather
-    than propagated, so callers can try edits speculatively in a loop.
+
+def merge_siblings(network: nx.DiGraph, u: Hashable, w: Hashable) -> None:
+    """Combination of transfer_edge moves: all children of w are moved below
+    its sibling u (common parent required); w is left without children and
+    removed. For |child(w)| = k this is a combination of 2k pull moves
+    (+ removing the dead vertex)."""
+    if u == w or _is_leaf(network, u) or _is_leaf(network, w):
+        raise ValueError("merge_siblings needs two distinct inner vertices")
+    common = set(network.predecessors(u)) & set(network.predecessors(w))
+    if not common:
+        raise ValueError(f"{u!r} and {w!r} are not siblings")
+    via = min(common, key=str)
+    for c in list(network.successors(w)):
+        if network.has_edge(u, c):
+            network.remove_edge(w, c)      # u already has c
+        else:
+            transfer_edge(network, w, c, via, u)
+    network.remove_node(w)                 # dead vertex
+
+
+def group_children(network: nx.DiGraph, u: Hashable, c1: Hashable, c2: Hashable, name: Hashable = None) -> None:
+    """Inverse of contraction: insert a new vertex w below u and pull_down
+    (u, c1), (u, c2) to w. Requires u to keep >= 2 children (w and another),
+    so the result stays phylogenetic."""
+    if not (network.has_edge(u, c1) and network.has_edge(u, c2)) or c1 == c2:
+        raise ValueError("c1, c2 must be distinct children of u")
+    if network.out_degree(u) < 3:
+        raise ValueError("grouping all children of u would create a single-child vertex")
+    if name is None:
+        i = 0
+        while f"g{i}" in network:
+            i += 1
+        name = f"g{i}"
+    network.add_node(name, color=None)
+    network.add_edge(u, name)
+    for c in (c1, c2):
+        network.remove_edge(u, c)
+        network.add_edge(name, c)
+
+
+def contract_into_parents(network: nx.DiGraph, v: Hashable) -> None:
+    """Generalised contraction for networks: v disappears and EVERY parent of
+    v inherits all children of v (for in-degree 1 identical to contract_edge).
+    As a pull-sequence: pull_up every child edge (v, c) to every parent."""
+    if _is_leaf(network, v):
+        raise ValueError(f"{v!r} is a leaf")
+    parents, children = list(network.predecessors(v)), list(network.successors(v))
+    if not parents:
+        raise ValueError(f"{v!r} is the root")
+    network.remove_node(v)
+    network.add_edges_from((p, c) for p in parents for c in children)
+
+
+# ---------------------------------------------------------------------------
+# (A) BMG-invariant edits
+# ---------------------------------------------------------------------------
+
+def find_twin_vertices(network: nx.DiGraph) -> list[list[Hashable]]:
+    groups: dict = {}
+    for n in network.nodes:
+        if _is_leaf(network, n):
+            continue
+        key = (frozenset(network.predecessors(n)), frozenset(network.successors(n)))
+        groups.setdefault(key, []).append(n)
+    return [sorted(g, key=str) for g in groups.values() if len(g) > 1]
+
+
+def remove_twin_vertex(network: nx.DiGraph, u: Hashable) -> None:
+    """Remove inner vertex u if a twin (same parents, same children) exists.
+    Invariant: the twin has identical ancestors/descendants, so every LCA set
+    and every ≺-relation between LCA elements is kept."""
+    if _is_leaf(network, u):
+        raise ValueError(f"{u!r} is a leaf; cannot be removed as redundant")
+    parents, children = frozenset(network.predecessors(u)), frozenset(network.successors(u))
+    if not any(
+        n != u and not _is_leaf(network, n)
+        and frozenset(network.predecessors(n)) == parents
+        and frozenset(network.successors(n)) == children
+        for n in network.nodes
+    ):
+        raise ValueError(f"No twin vertex found for {u!r}")
+    network.remove_node(u)
+
+
+def remove_single_child_vertex(network: nx.DiGraph, v: Hashable) -> None:
+    """Suppress v with exactly one child (parents are linked to the child)."""
+    children = list(network.successors(v))
+    if len(children) != 1:
+        raise ValueError(f"{v!r} must have exactly 1 child (has {len(children)})")
+    parents = list(network.predecessors(v))
+    network.remove_node(v)
+    network.add_edges_from((p, children[0]) for p in parents)
+
+
+def remove_one_to_one_vertex(network: nx.DiGraph, v: Hashable) -> None:
+    if network.in_degree(v) != 1:
+        raise ValueError(f"{v!r} must have exactly 1 parent")
+    remove_single_child_vertex(network, v)
+
+
+def remove_dead_vertex(network: nx.DiGraph, v: Hashable, leaves: set) -> None:
+    if v in leaves or not _is_leaf(network, v):
+        raise ValueError(f"{v!r} is not a dead inner vertex")
+    network.remove_node(v)
+
+
+def remove_shortcut_edge(network: nx.DiGraph, u: Hashable, v: Hashable) -> None:
+    """Remove (u, v) if v is still reachable from u without it."""
+    network.remove_edge(u, v)
+    if not nx.has_path(network, u, v):
+        network.add_edge(u, v)
+        raise ValueError(f"({u!r}, {v!r}) is not a shortcut")
+
+
+def normalize(network: nx.DiGraph, leaves: set) -> dict:
+    """Apply all BMG-invariant edits (A) in place until nothing changes.
+
+    Afterwards: no dead vertices, no single-child vertices (incl. the root),
+    no twins, no shortcut edges. Returns counts per edit type."""
+    stats = {"dead": 0, "single_child": 0, "twins": 0, "shortcuts": 0}
+    changed = True
+    while changed:
+        changed = False
+        for v in [v for v in network if v not in leaves and network.out_degree(v) == 0]:
+            network.remove_node(v)
+            stats["dead"] += 1
+            changed = True
+        for v in [v for v in network if network.out_degree(v) == 1]:
+            if v in network and network.out_degree(v) == 1:
+                remove_single_child_vertex(network, v)
+                stats["single_child"] += 1
+                changed = True
+        for group in find_twin_vertices(network):
+            for u in group[1:]:
+                network.remove_node(u)
+                stats["twins"] += 1
+                changed = True
+        # shortcut (u, v): v is a proper descendant of another child w of u
+        desc: dict = {}
+        for x in reversed(list(nx.topological_sort(network))):
+            d = set()
+            for c in network.successors(x):
+                d.add(c)
+                d |= desc[c]
+            desc[x] = d
+        shortcuts = [
+            (u, v)
+            for u in network.nodes
+            for v in network.successors(u)
+            if any(v in desc[w] for w in network.successors(u) if w != v)
+        ]
+        if shortcuts:
+            network.remove_edges_from(shortcuts)  # removing all at once keeps reachability
+            stats["shortcuts"] += len(shortcuts)
+            changed = True
+    return stats
+
+
+# ---------------------------------------------------------------------------
+# task 2.2(d): guarded editing
+# ---------------------------------------------------------------------------
+
+def make_guard(reference: nx.DiGraph, mode: str = "bmg") -> Callable[[nx.DiGraph], bool]:
+    """Returns ``guard(candidate) -> bool``: does candidate explain the same
+    (weak) BMG as ``reference``? Vertex sets (= leaves) and edge sets are compared."""
+    if mode not in ("bmg", "wbmg"):
+        raise ValueError(f"unknown mode {mode!r} (use 'bmg' or 'wbmg')")
+
+    compute = bmg_from_network if mode == "bmg" else wbmg_from_network
+    G = compute(reference)
+    nodes, edges = set(G.nodes), set(G.edges)
+
+    def guard(candidate: nx.DiGraph) -> bool:
+        H = compute(candidate)
+        return set(H.nodes) == nodes and set(H.edges) == edges
+
+    return guard
+
+
+def bmg_is_same(network1, network2, mode="bmg") -> bool:
+    return make_guard(network1, mode)(network2)
+
+
+def try_edit(network: nx.DiGraph, edit_fn, *args: Any, still_valid=None, **kwargs: Any) -> tuple[nx.DiGraph, bool]:
+    """Apply ``edit_fn`` to a COPY; reject on ValueError or if
+    ``still_valid(network, copy)`` is False. Returns (result, applied).
     """
     candidate = network.copy()
     try:
-        result = edit_fn(candidate, *args, **kwargs)
-        # Falls edit_fn einen neuen Graphen zurückgibt
-        if isinstance(result, nx.DiGraph):
-            candidate = result
+        edit_fn(candidate, *args, **kwargs)
     except ValueError:
-        return network, False
-
-    if not nx.is_directed_acyclic_graph(candidate):
         return network, False
     if still_valid is not None and not still_valid(network, candidate):
         return network, False
-
     return candidate, True
