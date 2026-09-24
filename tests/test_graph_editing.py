@@ -27,7 +27,7 @@ try:
 except ImportError:  # pragma: no cover - old layout
     import utils.graph_editing as ge
 
-from utils.bic_cherry import bic_cherry_expansion
+from utils.bic_cherry import bic_cherry_expansion, restricted_bic_cherry_expansion
 from utils.graph_utils import bmg_from_network, clusters, is_phylogenetic_tree
 
 Move = ge.Move
@@ -89,7 +89,7 @@ def _instances(n=6, seed=5):
     out = []
     for t in generate_instances(n, min_leaves=3, max_leaves=6, max_species=3, seed=seed):
         G = bmg_from_network(t)
-        out.append(bic_cherry_expansion(G, restricted=True))
+        out.append(restricted_bic_cherry_expansion(G))
     return out
 
 
@@ -341,7 +341,7 @@ class TestTwins:
     def test_reduce_twins_on_bic_cherry_network(self):
         # every bicolored pair gets two copies p:x|y, p:y|x -> one each after reduction
         from task_2_utils.experiments import complete_bmg
-        N = bic_cherry_expansion(complete_bmg((1, 2)), restricted=True)
+        N = restricted_bic_cherry_expansion(complete_bmg((1, 2)))
         R = ge.reduce_twins(N)
         assert N.number_of_nodes() == 8 and R.number_of_nodes() == 6
         assert ge.twin_pairs(R) == []
