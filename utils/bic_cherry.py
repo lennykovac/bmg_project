@@ -4,14 +4,14 @@ import networkx as nx
 
 def bic_cherry(bmg: nx.DiGraph):
     """
-    Construct BIC-cherry network (before any extensions)
+    Construct BIC-cherry network (before any expansions)
 
     Parameters:
     bmg: valid bmg graph, no self loops, sicor-in-hub property
 
     Returns:
     network: resulting bic-cherry network
-    pairs: all node pairs of different color (needed for extensions)
+    pairs: all node pairs of different color (needed for expansions)
     """
     # construct BIC-cherry network
     network = nx.DiGraph()

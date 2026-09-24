@@ -13,7 +13,7 @@ from task_2_utils.edit_search import CONFIGS, ATOMIC, WITH_MACROS, find_path, so
 from task_2_utils.failures import proven_failure, minimal_counterexample, signature
 from task_2_utils.fast_edit import Net, cluster_set
 
-from task_2_utils.experiments import (
+from task_2_task_2_utils.experiments import (
     arcs,
     compare_searches,
     complete_bmg,

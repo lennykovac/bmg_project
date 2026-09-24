@@ -33,7 +33,7 @@ different orders. The original id stays visible in the tooltip.
 Leaf names and thinness classes
 -------------------------------
 Leaves are shown as ``a1, a2, b1 ...`` (one letter per colour, see
-:mod:`utils.labels`); the original id is in the tooltip. Individual leaves
+:mod:`task_2_utils.labels`); the original id is in the tooltip. Individual leaves
 are always round. A subtitle lists every thinness class with >= 2 leaves --
 ``α`` for colour ``a``, ``α1``/``α2`` when colour ``a`` has several -- and
 its members.
@@ -55,7 +55,7 @@ Leaves: fixed palette indexed by the colour value (ints directly, anything
 else via a stable CRC32 -- *not* ``hash()``, which is salted per process), so
 the same species gets the same colour in every plot of every run. Inner
 vertices: grayscale by role -- root ``#404040``, cherry ``p:`` ``#808080``,
-extension ``q:`` ``#B0B0B0``, other inner ``#9A9A9A``.
+expansion ``q:`` ``#B0B0B0``, other inner ``#9A9A9A``.
 """
 
 from __future__ import annotations
@@ -69,7 +69,7 @@ from typing import Hashable, Mapping, Optional
 import networkx as nx
 from pyvis.network import Network
 
-from utils.labels import class_names, leaf_labels
+from task_2_utils.labels import class_names, leaf_labels
 
 __all__ = [
     "PALETTE",
@@ -102,7 +102,7 @@ PALETTE = (
 INNER_GRAYS = {
     "root": "#404040",
     "cherry": "#808080",
-    "extension": "#B0B0B0",
+    "expansion": "#B0B0B0",
     "inner": "#9A9A9A",
 }
 
@@ -125,7 +125,7 @@ def _is_cherry(v) -> bool:
     return isinstance(v, str) and v.startswith("p:")
 
 
-def _is_extension(v) -> bool:
+def _is_expansion(v) -> bool:
     return isinstance(v, str) and v.startswith("q:")
 
 
@@ -140,7 +140,7 @@ def detect_graph_type(G: nx.DiGraph) -> str:
     """
     if G.number_of_nodes() and all(c is not None for _, c in G.nodes(data="color")):
         return "bmg"
-    if any(_is_cherry(v) or _is_extension(v) for v in G):
+    if any(_is_cherry(v) or _is_expansion(v) for v in G):
         return "bic_cherry"
     roots = [v for v in G if G.in_degree(v) == 0]
     if (
@@ -159,8 +159,8 @@ def _role(G: nx.DiGraph, v) -> str:
         return "root"
     if _is_cherry(v):
         return "cherry"
-    if _is_extension(v):
-        return "extension"
+    if _is_expansion(v):
+        return "expansion"
     return "inner"
 
 
@@ -221,8 +221,8 @@ def _sorted_children(G, v, cluster, rank: Mapping | None = None) -> list:
 def leaf_rank(names: Mapping, classes: Mapping) -> dict:
     """Global leaf order: by name, except that the members of a thinness
     class are pulled together behind their first member. ``names`` from
-    :func:`utils.labels.leaf_labels`, ``classes`` from
-    :func:`utils.labels.class_names`."""
+    :func:`task_2_utils.labels.leaf_labels`, ``classes`` from
+    :func:`task_2_utils.labels.class_names`."""
     first: dict = {}
     for v, cls in classes.items():
         key = _natural(names[v])
@@ -415,7 +415,7 @@ def _bmg_layout(G: nx.DiGraph, rank: Mapping | None = None, classes: Mapping | N
 # ---------------------------------------------------------------------------
 
 def _leaf_context(G: nx.DiGraph, reference=None, with_classes: bool = True):
-    """``(names, classes, rank)`` of the leaves of ``G`` (see :mod:`utils.labels`)."""
+    """``(names, classes, rank)`` of the leaves of ``G`` (see :mod:`task_2_utils.labels`)."""
     names = leaf_labels(G, reference)
     classes = class_names(G, names) if with_classes else {}
     return names, classes, leaf_rank(names, classes)
@@ -452,7 +452,7 @@ def display_labels(
     rank: Mapping | None = None,
     names: Mapping | None = None,
 ) -> dict:
-    """Leaves show their name (``a1``, ``b2`` ... from :mod:`utils.labels`).
+    """Leaves show their name (``a1``, ``b2`` ... from :mod:`task_2_utils.labels`).
     Inner vertices of *trees* get canonical names ``v0`` (root), ``v1`` ... in
     preorder over the canonical child order, so equal phylogenies get equal
     labels. Networks keep their ids (``R``, ``p:x|y``, ``q:x|z`` carry
@@ -573,7 +573,7 @@ def collapse_thin_classes(
 ) -> tuple[nx.DiGraph, dict]:
     """Replace every named thinness class by ONE vertex ``"class:<name>"``.
 
-    ``classes`` is ``leaf -> class name`` (:func:`utils.labels.class_names`).
+    ``classes`` is ``leaf -> class name`` (:func:`task_2_utils.labels.class_names`).
     Returns the quotient graph and ``class vertex -> [member leaves]``.
 
     * BMG: thin-equivalent leaves have identical in- and out-neighbourhoods,
@@ -615,7 +615,7 @@ def _is_least_resolved(T: nx.DiGraph) -> bool:
     """Is the tree ``T`` its own least resolved tree?"""
     try:
         from utils.graph_utils import same_phylogeny
-        from utils.labels import best_match_graph_of
+        from task_2_utils.labels import best_match_graph_of
         from utils.lrt import lrt_from_bmg
     except ImportError:  # pragma: no cover
         return False
