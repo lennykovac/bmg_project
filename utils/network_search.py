@@ -35,7 +35,7 @@ from utils.graph_editing import (
     delete_parent_edge,
     group_children,
     make_guard,
-    merge_siblings,
+    merge_twins,
     normalize,
     pull_down,
     pull_up,
@@ -80,7 +80,7 @@ def candidate_moves(N: nx.DiGraph, compound: bool = True):
     single moves: delete_parent_edge, pull_up / pull_down by one level.
     compound moves (small fixed combinations of single moves, task 2.2(d)):
       pull_up_to_common_ancestor(v, c) for hybrids v and c ∈ LCA(parents(v)),
-      contract_into_parents(v), merge_siblings(u, w) for siblings whose
+      contract_into_parents(v), merge_twins(u, w) for siblings whose
       clusters overlap (only those can be merged without creating a new
       cluster that is disjoint-union-like; heuristic restriction)."""
     if compound:
@@ -102,7 +102,7 @@ def candidate_moves(N: nx.DiGraph, compound: bool = True):
             for i, u in enumerate(kids):
                 for w in kids[i + 1:]:
                     if cl[u] & cl[w]:
-                        yield ("merge", merge_siblings, (u, w))
+                        yield ("merge", merge_twins, (u, w))
         for u in N.nodes:
             kids = sorted(N.successors(u), key=str)
             if len(kids) >= 3:

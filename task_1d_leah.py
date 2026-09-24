@@ -13,10 +13,10 @@ from utils.graph_utils import (
 )
 from utils.tree_utils import create_gene_tree
 from utils.bic_cherry_one_node_init import (
-    bic_cherry_extension,
+    bic_cherry_expansion,
     bic_cherry,
-    restricted_bic_cherry_extension,
-    restricted_bic_cherry_more_extensions,
+    restricted_bic_cherry_expansion,
+    restricted_bic_cherry_more_expansions,
     wbmg_bic_cherry,
     wbmg_bic_cherry2
 
@@ -40,7 +40,7 @@ def test_reconstructed_bmg_has_no_additional_edges():
         tree = create_gene_tree(species, species_tree_age).gene_tree
         graph = transform(tree, 2)
         bmg = bmg_from_network(graph)
-        network = bic_cherry_extension(bmg)
+        network = bic_cherry_expansion(bmg)
 
         new_bmg = bmg_from_network(network)
 
@@ -61,7 +61,7 @@ def test_missing_edges_are_weak_best_matches():
         tree = create_gene_tree(species, species_tree_age).gene_tree
         graph = transform(tree, 2)
         bmg = bmg_from_network(graph)
-        network = bic_cherry_extension(bmg)
+        network = bic_cherry_expansion(bmg)
 
         new_bmg = bmg_from_network(network)
 
@@ -97,7 +97,7 @@ def wbm_minimal_example(max_leaves=10, runs_per_size=100):
 
             wbmg = wbmg_from_network(graph)
 
-            network = restricted_bic_cherry_extension(wbmg)
+            network = restricted_bic_cherry_expansion(wbmg)
             new_wbmg = wbmg_from_network(network)
 
             if not nx.is_isomorphic(wbmg, new_wbmg):
@@ -109,7 +109,7 @@ def wbm_minimal_example(max_leaves=10, runs_per_size=100):
     return None, None, None, None
 
 
-def wbm_more_extensions_minimal_example(max_leaves=10, runs_per_size=5000):
+def wbm_more_expansions_minimal_example(max_leaves=10, runs_per_size=5000):
     species = 2
     species_tree_age = 1
 
@@ -136,7 +136,7 @@ def wbm_more_extensions_minimal_example(max_leaves=10, runs_per_size=5000):
 
                 return graph, wbmg, network, pairs, extend_pairs, new_wbmg
 
-    print("Kein Gegenbeispiel more extension gefunden.")
+    print("Kein Gegenbeispiel more expansion gefunden.")
     return None, None, None, None
 
 def wbmg_edge_count_relationship(total_runs):
@@ -161,7 +161,7 @@ def wbmg_edge_count_relationship(total_runs):
 
 
 
-        network = restricted_bic_cherry_extension(wbmg)
+        network = restricted_bic_cherry_expansion(wbmg)
         new_wbmg = wbmg_from_network(network)
 
         edges_wbmg = set(wbmg.edges)
@@ -241,7 +241,7 @@ if __name__ == "__main__":
 
 #graph, wbmg, network, new_wbmg = wbm_minimal_example()
 
-graph, wbmg, network, pairs, extend_pairs, new_wbmg =wbm_more_extensions_minimal_example()
+graph, wbmg, network, pairs, extend_pairs, new_wbmg =wbm_more_expansions_minimal_example()
 
 #print_compare_bmg(graph, wbmg, network, new_wbmg)
 print_compare_bmg(graph, wbmg, network, pairs, extend_pairs, new_wbmg)

@@ -4,14 +4,14 @@ import networkx as nx
 
 def bic_cherry(bmg: nx.DiGraph):
     """
-    Construct BIC-cherry network (before any extensions)
+    Construct BIC-cherry network (before any expansions)
 
     Parameters:
     bmg: valid bmg graph, no self loops, sicor-in-hub property
 
     Returns:
     network: resulting bic-cherry network
-    pairs: all node pairs of different color (needed for extensions)
+    pairs: all node pairs of different color (needed for expansions)
     """
     # construct BIC-cherry network
     network = nx.DiGraph()
@@ -45,7 +45,7 @@ def bic_cherry(bmg: nx.DiGraph):
     return network, pairs
 
 
-def bic_cherry_extension(bmg):
+def bic_cherry_expansion(bmg):
     """
     Construct explaining network from BMG using the BIC-cherry + Expansion Algo from the paper.
 
@@ -58,7 +58,7 @@ def bic_cherry_extension(bmg):
     network, pairs = bic_cherry(bmg)
     bmg_edges = set(bmg.edges())
 
-    # pairs to do extensions for (direction sensitive)
+    # pairs to do expansions for (direction sensitive)
     extend_pairs = [
         edge for (u, v) in pairs for edge in [(u, v), (v, u)] if edge not in bmg_edges
     ]
@@ -78,7 +78,7 @@ def bic_cherry_extension(bmg):
     return network
 
 
-def restricted_bic_cherry_extension(bmg):
+def restricted_bic_cherry_expansion(bmg):
     """
     Construct explaining network from BMG using the BIC-cherry + Expansion Algo from the paper where expansion partner nodes (z)
     must be chosen such that (x, z) is an edge in the BMG
@@ -92,7 +92,7 @@ def restricted_bic_cherry_extension(bmg):
     network, pairs = bic_cherry(bmg)
     bmg_edges = set(bmg.edges())
 
-    # pairs to do extensions for (both directions!)
+    # pairs to do expansions for (both directions!)
     extend_pairs = [
         edge for (u, v) in pairs for edge in [(u, v), (v, u)] if edge not in bmg_edges
     ]

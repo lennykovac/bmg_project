@@ -53,7 +53,7 @@ def bic_cherry_network_initialization(graph: nx.DiGraph):
 
 
 # extends the network by [xy : xz].
-def extension(x, y, z,  N: nx.DiGraph):
+def expansion(x, y, z,  N: nx.DiGraph):
     p_xy = f"P{x}:{y}"
     p_yx = f"P{y}:{x}"
 
@@ -86,11 +86,11 @@ def bic_cherry(graph: nx.DiGraph):
     for x,y in color_pairs:
         if graph.has_edge(x, y) == False:
             z = choose_same_color_node(y, graph)
-            N = extension(x, y, z, N)
+            N = expansion(x, y, z, N)
 
         if graph.has_edge(y, x) == False:
             z = choose_same_color_node(x, graph)
-            N = extension(y, x, z, N)
+            N = expansion(y, x, z, N)
 
     return N
 
