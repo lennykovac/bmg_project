@@ -344,6 +344,9 @@ def bmg_from_network(network: nx.DiGraph, weak: bool = False) -> nx.DiGraph:
                         graph.add_edge(x, y)
     return graph
 
+def wbmg_from_network(network):
+    return bmg_from_network(network, weak=True)
+
 # ---------------------------------------------------------------------------
 # Graph properties
 # ---------------------------------------------------------------------------
@@ -358,6 +361,9 @@ def check_color_sink_free(G: nx.DiGraph) -> bool:
             return False
     return True
 
+def network_depth(network: nx.DiGraph) -> int:
+    """Number of arcs on the longest root-to-leaf path."""
+    return nx.dag_longest_path_length(network) if network.number_of_nodes() else 0
 # ---------------------------------------------------------------------------
 # Comparing phylogenies
 # ---------------------------------------------------------------------------

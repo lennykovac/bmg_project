@@ -97,7 +97,7 @@ EXTENDED_MOVES = ("pull_up", "pull_down", "merge_twins", "remove_arc")
 
 # ---------------------------------------------------------------------------
 # invariants
-# ---------------------------------------------------------------------------
+# --------------------------------------------------------------------------
 
 def is_network(N: nx.DiGraph, leaves: set | None = None) -> bool:
     """DAG, unique root, no inner vertex with a single child, leaves intact."""
@@ -321,7 +321,7 @@ def twin_pairs(N: nx.DiGraph) -> list[tuple]:
 
 
 def reduce_twins(N: nx.DiGraph) -> nx.DiGraph:
-    """Exhaustively merge twin vertices (a provably BMG/WBMG-preserving reduction).
+    """Exhaustively merge twin vertices 
 
     Because twins are order-theoretically indistinguishable, no best match
     test can tell them apart, so this needs no verification against the
@@ -353,7 +353,7 @@ def cluster_multiset(N: nx.DiGraph) -> dict:
     for v in N:
         if N.out_degree(v) == 0:
             continue
-        out[ml[v]] = out.get(cl[v], 0) + 1
+        out[cl[v]] = out.get(cl[v], 0) + 1
     return out
 
 

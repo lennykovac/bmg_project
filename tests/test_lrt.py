@@ -14,7 +14,6 @@ import networkx as nx
 import pytest
 
 from tests.helpers import edges
-from
 from utils.graph_utils import bmg_from_network, is_phylogenetic_tree, same_phylogeny
 from utils.lrt import (
     asymmetree_bmg,
@@ -25,6 +24,7 @@ from utils.lrt import (
     lrt_of_tree,
     lrt_target,
     tralda_to_digraph,
+    is_bmg
 )
 
 
