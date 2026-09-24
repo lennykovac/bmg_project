@@ -5,7 +5,7 @@ from utils.graph_utils import (
     print_graph_diff,
 )
 from utils.tree_utils import create_gene_tree_n_leaves
-from utils.bic_cherry import restricted_bic_cherry_extension
+from utils.bic_cherry import restricted_bic_cherry_expansion
 
 
 def generated_examples_test():
@@ -16,7 +16,7 @@ def generated_examples_test():
         tree = create_gene_tree_n_leaves(leaves, species, species_tree_age).gene_tree
         network = transform(tree, 10)
         wbmg = wbmg_from_network(network)
-        network2 = restricted_bic_cherry_extension(wbmg)
+        network2 = restricted_bic_cherry_expansion(wbmg)
         wbmg2 = wbmg_from_network(network2)
 
         if nx.is_isomorphic(wbmg, wbmg2):

@@ -13,7 +13,7 @@ from utils.graph_utils import (
     print_compare_bmg
 )
 from utils.bic_cherry import (
-    bic_cherry_extension,
+    bic_cherry_expansion,
 )
 
 from utils.graph_editing import (
@@ -56,7 +56,7 @@ for leaf in leaves:
 explanations (N, σ).
 '''
 
-network = bic_cherry_extension(tree_bmg)
+network = bic_cherry_expansion(tree_bmg)
 
 
 '''
