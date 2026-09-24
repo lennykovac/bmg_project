@@ -1,25 +1,5 @@
 from itertools import combinations, product
-
 import networkx as nx
-from utils.lrt import is_bmg
-
-
-###BIC-cherry
-def _color_groups(graph: nx.DiGraph) -> dict[str, list]:
-    """color -> list of vertices of that color."""
-    groups: dict = {}
-    for node, color in graph.nodes(data="color"):
-        groups.setdefault(color, []).append(node)
-    return groups
-
-
-def bicolored_pairs(graph: nx.DiGraph) -> list[tuple]:
-    """All unordered pairs ``{x, y}`` with ``sigma(x) != sigma(y)``, as tuples."""
-    groups = _color_groups(graph)
-    pairs: list[tuple] = []
-    for c1, c2 in combinations(groups.keys(), 2):
-        pairs.extend(product(groups[c1], groups[c2]))
-    return pairs
 
 
 def bic_cherry(bmg: nx.DiGraph):
@@ -33,87 +13,69 @@ def bic_cherry(bmg: nx.DiGraph):
     network: resulting bic-cherry network
     pairs: all node pairs of different color (needed for extensions)
     """
-
-    if not is_bmg(bmg):
-        raise ValueError("input into bic-cherry is not bmg")
-
+    # construct BIC-cherry network
     network = nx.DiGraph()
-    # careful: bmg.nodes(data="color") returns tuples, not a dict!
-    network.add_nodes_from((n, {"color": color}) for n, color in bmg.nodes(data="color"))
+    network.add_nodes_from(  # careful: bmg.nodes(data="color") returns a tuple, not a dict!
+        (n, {"color": color}) for n, color in bmg.nodes(data="color")
+    )
 
-    pairs = bicolored_pairs(bmg)
+    # find all pairs of different colored nodes
+    color_groups = {}  # build dict with with list of all nodes by color
+    for node, color in nx.get_node_attributes(bmg, "color").items():
+        color_groups.setdefault(color, []).append(node)
 
-    # |L| == 2: the single cherry vertex takes on the role of the root
-    if bmg.number_of_nodes() == 2 and pairs:
-        x, y = pairs[0]
-        network.add_node(f"p:{x}|{y}", color=None)
-        network.add_edge(f"p:{x}|{y}", x)
-        network.add_edge(f"p:{x}|{y}", y)
-        return network, pairs
+    pairs = []  # collect all pairs of different color
+    colors = list(color_groups.keys())
+
+    for x, y in combinations(colors, 2):
+        pairs.extend(product(color_groups[x], color_groups[y]))
 
     # build root and basic parent nodes and basic edges
     network.add_node("R", color=None)  # new root
     for x, y in pairs:
-        for a, b in ((x, y), (y, x)):
-            network.add_node(f"p:{a}|{b}", color=None)
-            network.add_edge("R", f"p:{a}|{b}")
-            network.add_edge(f"p:{a}|{b}", x)
-            network.add_edge(f"p:{a}|{b}", y)
+        network.add_node(f"p:{x}|{y}", color=None)
+        network.add_edge("R", f"p:{x}|{y}")
+        network.add_edge(f"p:{x}|{y}", x)
+        network.add_edge(f"p:{x}|{y}", y)
+
+        network.add_node(f"p:{y}|{x}", color=None)
+        network.add_edge("R", f"p:{y}|{x}")
+        network.add_edge(f"p:{y}|{x}", x)
+        network.add_edge(f"p:{y}|{x}", y)
     return network, pairs
 
-### EXPANSION
-def _non_arcs(bmg: nx.DiGraph, pairs: list[tuple]) -> list[tuple]:
-    """Ordered bicolored pairs that are *not* arcs of the bmg."""
-    arcs = set(bmg.edges())
-    return [e for (u, v) in pairs for e in ((u, v), (v, u)) if e not in arcs]
 
-
-def _choose_z(bmg: nx.DiGraph, x, y, restricted: bool, arcs: set):
-    """Pick the partner ``z`` of the extension ``[xy : xz]``.
-
-    ``z`` has the color of ``y`` and differs from ``y``; in the restricted
-    variant ``(x, z)`` additionally has to be an arc of ``graph``.
+def bic_cherry_expansion(bmg, restricted:bool=False):
     """
-    target = bmg.nodes[y]["color"]
-    for n, color in bmg.nodes(data="color"):
-        if n == y or color != target:
-            continue
-        if restricted and (x, n) not in arcs:
-            continue
-        return n
-    if restricted:
-        raise ValueError(
-            f"no accepting partner for the extension [{x}{y} : {x}z]: "
-            f"{x} has no out-neighbour of color {target!r} besides {y} -- "
-            "the graph is not color-sink-free"
-        )
-    raise ValueError(
-        f"no partner for the extension [{x}{y} : {x}z]: {y} is the only vertex "
-        f"of color {target!r} but ({x}, {y}) is not an arc -- "
-        "the graph violates the sicor-in-hub property"
-    )
-
-
-def bic_cherry_expansion(
-    bmg: nx.DiGraph,
-    restricted: bool = False,
-) -> nx.DiGraph:
-    """BIC-cherry network plus the expansion step.
+    Construct explaining network from BMG using the BIC-cherry + Expansion Algo from the paper.
 
     Parameters:
-    graph: a vertex-colored digraph with the sicor-in-hub property (a BMG or a
-        WBMG of some network)
-    restricted: choose the expansion partner ``z`` only among the accepting
-        arcs ``(x, z) in E(graph)`` (task 1b)
+    bmg: valid bmg graph, no self loops, sicor-in-hub property
 
     Returns:
-    network: an explaining network for the input graph
+    network: an explaining network for input BMG
     """
     network, pairs = bic_cherry(bmg)
-    arcs = set(bmg.edges())
+    bmg_edges = set(bmg.edges())
 
-    for x, y in _non_arcs(bmg, pairs):
-        z = _choose_z(bmg, x, y, restricted, arcs)
+    # pairs to do expansions for (direction sensitive)
+    extend_pairs = [
+        edge for (u, v) in pairs for edge in [(u, v), (v, u)] if edge not in bmg_edges
+    ]
+
+    for x, y in extend_pairs:
+        if not restricted:
+            z = [
+                n
+                for n, color in bmg.nodes(data="color")
+                if n != y and color == bmg.nodes[y]["color"]
+            ][0]
+        else:
+            z = [
+                n
+                for n, color in bmg.nodes(data="color")
+                if n != y and color == bmg.nodes[y]["color"] and (x, n) in set(bmg.edges())
+            ][0]
 
         network.add_node(f"q:{x}|{z}", color=None)
         network.add_edge(f"p:{x}|{y}", f"q:{x}|{z}")
@@ -122,17 +84,25 @@ def bic_cherry_expansion(
 
     return network
 
+
+
+def restricted_bic_cherry_expansion(bmg):
+    return bic_cherry_expansion(bmg, restricted=True)
+
+
+
 def network_depth(network: nx.DiGraph) -> int:
-    """Length of the longest root-to-leaf path.
- 
-    The BIC-cherry network has depth 2 (``rho -> p_xy -> leaf``). Each
-    extension inserts a new vertex between ``p_xy`` and the leaves, so an
-    expansion that performs at least one extension has depth exactly 3. A
-    construction that reused an existing cherry vertex instead of creating
-    ``q_xz`` would leave the depth at 2 and perform no extension at all.
-    """
-    depth: dict = {}
-    for v in nx.topological_sort(network):
-        parents = list(network.predecessors(v))
-        depth[v] = 0 if not parents else max(depth[p] for p in parents) + 1
-    return max(depth.values()) if depth else 0
+    """Number of arcs on the longest root-to-leaf path."""
+    return nx.dag_longest_path_length(network) if network.number_of_nodes() else 0
+
+
+#: name -> construction, used by experiments.analyse_instance
+EXPANSIONS = {
+    "restricted": lambda G: bic_cherry_expansion(G, restricted=True),
+    "plain": lambda G: bic_cherry_expansion(G, restricted=False),
+}
+DEFAULT_EXPANSION = "restricted"
+
+
+def explaining_network(bmg, expansion: str = DEFAULT_EXPANSION):
+    return EXPANSIONS[expansion](bmg)
