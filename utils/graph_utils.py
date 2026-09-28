@@ -225,7 +225,6 @@ def transform(graph: nx.DiGraph, num_of_hybrid_nodes: int, attempts = 7) -> nx.D
         else:
             budget -= 1
 
-    print(f"Number of succesfull insertions: {insertions}")
     return transformer_graph
 
 ###############################################################################
