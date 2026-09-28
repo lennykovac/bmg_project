@@ -22,7 +22,7 @@ import time
 import numpy as np
 from asymmetree.analysis import lrt_from_tree, bmg_from_tree
 
-from utils.bic_cherry import bic_cherry_extension, restricted_bic_cherry_extension
+from utils.bic_cherry import bic_cherry_expansion, restricted_bic_cherry_expansion
 from utils.graph_utils import bmg_from_network, clusters, same_phylogeny, wbmg_from_network
 from utils.lrt import is_least_resolved, lrt_by_contraction, lrt_from_bmg
 from utils.network_search import edit_search, reduce_to_tree
@@ -61,7 +61,7 @@ def run(args):
         leaves = random.randint(species, args.max_leaves)
         data, G, T_star = step_a(leaves, species)
 
-        builders = {"bic": bic_cherry_extension, "restricted": restricted_bic_cherry_extension}
+        builders = {"bic": bic_cherry_expansion, "restricted": restricted_bic_cherry_expansion}
         for net_name, build in builders.items():
             N = build(G)                                  
             for mode in args.modes:

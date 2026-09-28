@@ -44,7 +44,7 @@ def bic_cherry(bmg: nx.DiGraph):
 
     return network, pairs
 
-def bic_cherry_extension(bmg):
+def bic_cherry_expansion(bmg):
     """
     Construct explaining network from BMG using the BIC-cherry + Expansion Algo from the paper.
 
@@ -57,7 +57,7 @@ def bic_cherry_extension(bmg):
     network, pairs = bic_cherry(bmg)
     bmg_edges = set(bmg.edges())
 
-    # pairs to do extensions for (direction sensitive)
+    # pairs to do expansions for (direction sensitive)
     extend_pairs = [
         edge for (u, v) in pairs for edge in [(u, v), (v, u)] if edge not in bmg_edges
     ]
@@ -83,7 +83,7 @@ def bic_cherry_extension(bmg):
     return network
 
 
-def restricted_bic_cherry_extension(bmg):
+def restricted_bic_cherry_expansion(bmg):
     """
     Construct explaining network from BMG using the BIC-cherry + Expansion Algo from the paper where expansion partner nodes (z)
     must be chosen such that (x, z) is an edge in the BMG
@@ -97,7 +97,7 @@ def restricted_bic_cherry_extension(bmg):
     network, pairs = bic_cherry(bmg)
     bmg_edges = set(bmg.edges())
 
-    # pairs to do extensions for (both directions!)
+    # pairs to do expansions for (both directions!)
     extend_pairs = [
         edge for (u, v) in pairs for edge in [(u, v), (v, u)] if edge not in bmg_edges
     ]
@@ -126,7 +126,7 @@ def restricted_bic_cherry_extension(bmg):
 
 
 
-def restricted_bic_cherry_more_extensions(bmg):
+def restricted_bic_cherry_more_expansions(bmg):
     network, pairs = bic_cherry(bmg)
     bmg_edges = set(bmg.edges())
 
@@ -220,7 +220,7 @@ def restricted_bic_cherry_more_extensions(bmg):
 
 
 #[xy:xz]
-def extension(x, z, parent_node, network, depth):
+def expansion(x, z, parent_node, network, depth):
     u, v = sorted([x, z], key=lambda item: str(item))
     q_prefix = f"q{depth if depth > 0 else ''}"
     q_node = f"{q_prefix}:{u}|{v}"
@@ -271,7 +271,7 @@ def wbmg_bic_cherry(wbmg):
         parent_node = f"p:{u}|{v}"
 
 
-        network = extension(x, z, parent_node, network, depth=0)
+        network = expansion(x, z, parent_node, network, depth=0)
 
         if not found:
             second_extend_pairs.add((x, y, z))
@@ -314,7 +314,7 @@ def wbmg_bic_cherry(wbmg):
         parent_node = f"q:{u}|{v}"
 
 
-        network = extension(z, w, parent_node, network, depth=1)
+        network = expansion(z, w, parent_node, network, depth=1)
 
         if not found:
             third_extend_pairs.add((w, z, py))
@@ -355,7 +355,7 @@ def wbmg_bic_cherry(wbmg):
         u, v = sorted([x, y], key=lambda item: str(item))
         parent_node = f"q1:{u}|{v}"
 
-        network = extension(x, w, parent_node, network, depth=2)
+        network = expansion(x, w, parent_node, network, depth=2)
 
         if not found:
             fourth_extend_pairs.add((w, x, py))
@@ -396,7 +396,7 @@ def wbmg_bic_cherry(wbmg):
             u, v = sorted([x, y], key=lambda item: str(item))
             parent_node = f"q2:{u}|{v}"
 
-            network = extension(x, w, parent_node, network, depth=3)
+            network = expansion(x, w, parent_node, network, depth=3)
 
 
 
@@ -404,7 +404,7 @@ def wbmg_bic_cherry(wbmg):
 
 
 
-def extension2(x, z, parent_node, network, depth):
+def expansion2(x, z, parent_node, network, depth):
     u, v = sorted([x, z], key=lambda item: str(item))
     q_prefix = f"q{depth if depth > 0 else ''}"
     q_node = f"{q_prefix}:{u}|{v}"
@@ -455,7 +455,7 @@ def wbmg_bic_cherry2(wbmg, max_depth=5):
             parent_node = f"p:{u}|{v}" if depth == 0 else f"q{depth}:{u}|{v}"
 
 
-            network, q = extension2(x, z, parent_node, network, depth=depth)
+            network, q = expansion2(x, z, parent_node, network, depth=depth)
 
 
             if not found:
@@ -476,7 +476,7 @@ def wbmg_bic_cherry2(wbmg, max_depth=5):
                         break
 
 
-                network, q1 = extension2(z, w, q, network, depth=depth + 1)
+                network, q1 = expansion2(z, w, q, network, depth=depth + 1)
 
                 if (y, w) not in wbmg_edges:
                     t_node = f"lca:{y}|{w}"
