@@ -1,6 +1,8 @@
 import os
 import random
+import pytest
 from collections import Counter
+
 from utils.graph_utils import (
     transform,
     wbmg_from_network)
@@ -25,7 +27,7 @@ def export_mismatch(graph, n_leaves, n_hybrids, folder="mismatches"):
     nx.write_gml(export, path)
     return path
 
-
+@pytest.mark.exhaustive
 def test_bic_cherry_for_wbm_generated_examples():
     """Round-trip on random gene trees: tree -> WBMG -> network -> WBMG must match."""
     runs = 0

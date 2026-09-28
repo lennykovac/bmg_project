@@ -2,7 +2,7 @@
 Tests for hybrid nodes...
 - After an insert, the donor and hybrid have the right parents and children, and the graph gains 2 nodes and 3 edges.
 - The graph has no cycles, and the root and leaves stay the same.
-- Pairs that would create a cycle return False and leave the graph unchanged.
+- Pairs that would create a cycle and leave the graph unchanged.
 - Invalid edges and a donor name that already exists raise ValueError.
 """
 
@@ -18,6 +18,8 @@ from utils.graph_utils import (
     root_from_network,
     transform,
 )
+
+from utils.tree_utils import create_gene_tree_n_leaves
 
 def hybrid_nodes(G: nx.DiGraph):
     return [n for n in G.nodes if G.in_degree(n) >= 2]
@@ -159,29 +161,45 @@ class TestAddHybridNode:
         nodes, edges = set(cherry_tree.nodes), set(cherry_tree.edges)
         with pytest.raises(ValueError):
             add_hybrid_node(donor_edge, hybrid_edge, donor, hybrid, cherry_tree)
-        assert set(cherry_tree.nodes) == nodes
+        assert set(cherry_tree.nodes) == nodes 
+        assert set(cherry_tree.edges) == edges
 
 
 class TestTransform:
 
+    @pytest.mark.exhaustive
     @pytest.mark.parametrize("seed", range(10))
-    def test_result_is_valid_network(self, big_tree, seed):
+    def test_result_is_valid_network(self, seed):
         random.seed(seed)
-        root = root_from_network(big_tree)
-        leaves = set(leaves_from_network(big_tree))
+        # np.random.seed(seed)  # if AsymmeTree / your wrapper uses numpy
 
-        result = transform(big_tree, 6)
-        k = len(hybrid_nodes(result))
+        for _ in range(50):
+            t = create_gene_tree_n_leaves(leaves=random.randint(3, 250), species=2)
+            g = t.gene_tree
+            root = root_from_network(g)
+            leaves = set(leaves_from_network(g))
+            colors = {x: g.nodes[x].get("color") for x in leaves}
+            n0, m0 = g.number_of_nodes(), g.number_of_edges()
+            edges0 = set(g.edges)
 
-        assert nx.is_directed_acyclic_graph(result)
-        assert root_from_network(result) == root
-        assert set(leaves_from_network(result)) == leaves
-        assert 0 < k <= 6
-        assert result.number_of_nodes() == big_tree.number_of_nodes() + 2 * k
-        assert result.number_of_edges() == big_tree.number_of_edges() + 3 * k
-        # every hybrid has exactly two parents
-        assert all(result.in_degree(h) == 2 for h in hybrid_nodes(result))
+            requested = random.randint(3, 20)
+            result = transform(g, requested)
+            k = len(hybrid_nodes(result))
 
+            # input is not mutated
+            assert set(g.edges) == edges0
+            # still a valid network over the same leaves
+            assert nx.is_directed_acyclic_graph(result)
+            assert root_from_network(result) == root
+            assert set(leaves_from_network(result)) == leaves
+            assert all(result.nodes[x].get("color") == colors[x] for x in leaves)
+            # exactly k successful insertions, never more than requested
+            assert 0 < k <= requested
+            assert result.number_of_nodes() == n0 + 2 * k
+            assert result.number_of_edges() == m0 + 3 * k
+            assert all(result.in_degree(h) == 2 for h in hybrid_nodes(result))
+
+        
     def test_gets_requested_count_with_enough_attempts(self, big_tree):
         random.seed(42)
         result = transform(big_tree, 8, attempts=1000)
