@@ -1,7 +1,7 @@
 import networkx as nx
 import random 
 import pytest
-from utils.bic_cherry import bic_cherry, restricted_bic_cherry_extension, wbmg_cherry_extension
+from utils.bic_cherry import bic_cherry, wbmg_cherry_extension, restricted_bic_cherry_expansion
 from utils.graph_utils import (
     bmg_from_network,
     lca_dict_from_network,
@@ -243,7 +243,7 @@ class TestRunExperiment:
         return G
 
     def test_restricted_extension_minimal_fails(self, minimal_wbmg):
-        network = restricted_bic_cherry_extension(minimal_wbmg)
+        network = restricted_bic_cherry_expansion(minimal_wbmg)
         # q:y|x1 blocks p:y|x2, but its twin p:x2|y stays in Q(y, 0), so y -> x2 survives
         assert set(wbmg_from_network(network).edges()) == set(minimal_wbmg.edges()) | {("y", "x2")}
 
@@ -271,7 +271,7 @@ class TestRunExperiment:
         G.add_nodes_from([("x1", {"color": "0"}), ("x2", {"color": "0"}), ("y1", {"color": "1"}), ("y2", {"color": "1"})])
         G.add_edges_from([("x1", "y1"), ("y1", "x2"), ("x2", "y2"), ("y2", "x1")])
 
-        assert set(bmg_from_network(restricted_bic_cherry_extension(G)).edges()) == set(G.edges())
+        assert set(bmg_from_network(restricted_bic_cherry_expansion(G)).edges()) == set(G.edges())
         with pytest.raises(ValueError):
             wbmg_cherry_extension(G)
 
