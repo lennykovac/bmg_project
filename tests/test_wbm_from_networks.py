@@ -5,6 +5,7 @@ from utils.graph_utils import (
     transform,
     wbmg_from_network)
 from utils.tree_utils import create_gene_tree_n_leaves
+from bic_cherry_wmb import bic_cherry_for_wbm
 
 def export_mismatch(graph, n_leaves, n_hybrids, folder="mismatches"):
     """Write graph to <folder>/l_<leaves>h_<hybrids>.gml, numbered if the name is taken."""
