@@ -1,4 +1,3 @@
-from itertools import permutations
 import networkx as nx
 import pytest
 from utils.graph_utils import (
@@ -6,8 +5,6 @@ from utils.graph_utils import (
     transform,
     leaves_from_network,
     print_graph_diff,
-    show_graph,
-    wbmg_from_network
 )
 from utils.tree_utils import create_gene_tree_n_leaves
 from utils.bic_cherry import (
@@ -15,8 +12,6 @@ from utils.bic_cherry import (
     bic_cherry,
     restricted_bic_cherry_expansion,
 )
-
-from utils.bic_cherry_one_node_init import restricted_bic_cherry_expansion as lenny
 
 
 @pytest.fixture
@@ -173,24 +168,3 @@ def test_bmg_extra(sample_bmg_2):
     print_graph_diff(sample_bmg_2, new_bmg)
     assert nx.is_isomorphic(sample_bmg_2, new_bmg)
     assert nx.is_isomorphic(sample_bmg_2, restricted_new_bmg)#
-
-
-def test_leah():
-    wbmg = nx.DiGraph()
-
-    wbmg.add_node(1, label="1", color="0")
-    wbmg.add_node(2, label="2", color="1")
-    wbmg.add_node(3, label="3", color="1")
-    wbmg.add_node(4, label="4", color="0")
-
-    wbmg.add_edges_from([(1,2), (2,4), (4, 3), (3, 1)])
-
-    restricted_network = lenny(wbmg)
-    show_graph(restricted_network)
-    restricted_wbmg = wbmg_from_network(restricted_network)
-    show_graph(restricted_wbmg)
-
-
-
-if __name__ == "__main__":
-    test_leah()

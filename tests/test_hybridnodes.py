@@ -4,8 +4,9 @@ Tests for hybrid nodes...
 - The graph has no cycles, and the root and leaves stay the same.
 - Pairs that would create a cycle and leave the graph unchanged.
 - Invalid edges and a donor name that already exists raise ValueError.
-"""
 
+Authors: Lenny Kovac
+"""
 import random
 
 import networkx as nx
@@ -171,7 +172,6 @@ class TestTransform:
     @pytest.mark.parametrize("seed", range(10))
     def test_result_is_valid_network(self, seed):
         random.seed(seed)
-        # np.random.seed(seed)  # if AsymmeTree / your wrapper uses numpy
 
         for _ in range(50):
             t = create_gene_tree_n_leaves(leaves=random.randint(3, 250), species=2)

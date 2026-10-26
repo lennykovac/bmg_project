@@ -4,6 +4,8 @@ Tests for create_gene_tree_n_leaves.
 The simulation is stochastic, so the leaf count assertions use a tolerance
 instead of demanding an exact hit. The structural assertions below are
 deterministic and are where the real checking happens.
+
+Authors: Lenny Kovac
 """
 
 import json
@@ -25,7 +27,9 @@ def leaf_count(graph: nx.DiGraph) -> int:
 
 @pytest.fixture(scope="module")
 def trees():
-    """One simulated pair reused by all structural tests (simulation is slow)."""
+    """
+    One simulated pair reused by all structural tests (simulation is slow).
+    """
     return create_gene_tree_n_leaves(
         leaves=20, species=2, spt_age=1.0, max_attempts=ATTEMPTS
     )

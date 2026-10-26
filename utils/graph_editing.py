@@ -1,5 +1,4 @@
 """
-
 Normalisation
 -------------
 After every move :func:`normalize` restores the defining properties of a
