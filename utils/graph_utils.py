@@ -50,7 +50,13 @@ def insert_node_on_edge(node_for_adding: Any, edge: Tuple[Any, Any], G: nx.DiGra
 
 def root_from_network(network: nx.DiGraph) -> Any:
     """
-    Returns the root from 
+    Returns the root from the network.
+
+    Parameters:
+    network: a directed graph representing the network
+
+    Returns:    
+    The root of the network
     """
 
     roots = [n for n in network.nodes() if network.in_degree(n) == 0]
@@ -64,6 +70,15 @@ def root_from_network(network: nx.DiGraph) -> Any:
 
 
 def leaves_from_network(network: nx.DiGraph) -> list[Hashable]:
+    """
+    Returns the leaves from the network
+
+    Parameters:
+    network: a directed graph representing the network
+
+    Returns:
+    list of leaves
+    """
 
     return [n for n in network.nodes() if network.out_degree(n) == 0]
 
@@ -253,11 +268,12 @@ def lca_dict_from_network(
 ) -> dict[tuple[Hashable, Hashable], set[Hashable]]:
     """Compute dict with all LCAs in network
 
-    Args:
+    Parameters:
         network: network with leaves that have the `label` and `reconc` attributes set.
         reach: reachability sets for all nodes in network (for example see bmg_from_network)
         leaves: leafset of network
-
+    Returns:
+        dict mapping each pair of leaves to the set of their lowest common ancestors
     """
 
     # collect all pairs of different color
@@ -293,7 +309,8 @@ def lca_dict_from_network(
 
 
 def bmg_from_network(network: nx.DiGraph, weak: bool = False) -> nx.DiGraph:
-    """Construct the (weak) best match graph of a leaf-colored network.
+    """
+    Construct the (weak) best match graph of a leaf-colored network.
  
     One function for both definitions, because they differ in exactly one
     line -- the test applied to ``lca(x, y)`` -- and share everything else.
@@ -314,7 +331,7 @@ def bmg_from_network(network: nx.DiGraph, weak: bool = False) -> nx.DiGraph:
     On trees both sets coincide; they differ only on genuine networks, where
     ``lca`` can have more than one element.
  
-    Args:
+    Parameters:
         network: a network whose leaves have the `color` attribute set.
         weak: use the weak definition of a best match.
  
@@ -357,6 +374,7 @@ def bmg_from_network(network: nx.DiGraph, weak: bool = False) -> nx.DiGraph:
                     if not any(reach[v] & union for v in lca[(x, y)]):
                         graph.add_edge(x, y)
     return graph
+
 
 def wbmg_from_network(network):
     return bmg_from_network(network, weak=True)

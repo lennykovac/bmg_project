@@ -31,9 +31,17 @@ def _plain(value):
 
 
 def tree_to_digraph(tree: Tree) -> nx.DiGraph:
-    """AsymmeTree ``Tree`` -> ``nx.DiGraph`` keyed by node label.
+    """
+    AsymmeTree ``Tree`` -> ``nx.DiGraph`` keyed by node label.
 
-    Leaves get ``color = reconc`` (species), inner vertices ``color = None``."""
+    Leaves get ``color = reconc`` (species), inner vertices ``color = None``.
+    
+    Parameters:
+    tree: AsymmeTree Tree object
+    
+    Returns:
+    nx.DiGraph with node attributes: event, reconc, dist, color
+    """
     D = nx.DiGraph()
     for v in tree.preorder():
         is_leaf = not v.children
@@ -57,17 +65,33 @@ def create_gene_tree_n_leaves(
     hgt_rate: float = 0.1,
     max_attempts: int = 7,
 ) -> GeneSpeciesTrees:
-    """Simulate a dated gene tree with (approximately) ``leaves`` surviving genes.
+    """
+    Simulate a dated gene tree with (approximately) ``leaves`` surviving genes.
 
     The duplication rate is steered up/down between attempts; the attempt with
     the closest leaf count is returned. The BMG is computed with AsymmeTree and
     cross-checked against ``bmg_from_network`` (they must be equal).
+
+    Parameters:
+    leaves: number of leaves in the gene tree
+    species: number of species in the species tree
+    spt_age: age of the species tree (default: 1.0)
+    loss_rate: loss rate for the gene tree simulation (default: 0.5)
+    hgt_rate: horizontal gene transfer rate for the gene tree simulation (default: 0.1)
+    max_attempts: maximum number of attempts to get the desired leaf count (default: 7)
+
+    Returns:
+    GeneSpeciesTrees named tuple containing:
+        gene_tree: nx.DiGraph of the simulated gene tree
+        species_tree: nx.DiGraph of the simulated species tree
+        original_gene_tree: AsymmeTree Tree object of the simulated gene tree
     """
     if species < 2:
         raise ValueError("species has to be at least 2")
     if leaves < species:
         raise ValueError(f"leaves ({leaves}) has to be at least species ({species})")
 
+    # one species tree and we simulate gene trees until we get the right number of leaves
     species_tree = te.species_tree_n_age(species, age=spt_age)
 
     dupl_rate = 1.0
@@ -83,7 +107,7 @@ def create_gene_tree_n_leaves(
             best_tree, best_error = gene_tree, error
         if error == 0:
             break
-        # 3. more duplications give more leaves, so steer the rate accordingly (by a third)
+        # more duplications give more leaves, so steer the rate accordingly (by a third)
         dupl_rate *= 1.3 if leaf_count < leaves else 1 / 1.3
         dupl_rate = min(max(dupl_rate, 0.01), 25.0)
 
