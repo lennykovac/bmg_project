@@ -26,7 +26,7 @@ from utils.graph_editing import (
     try_edit,
 )
 
-from utils.network_search import (
+from task_2_utils.network_search import (
     make_still_valid
 )
 

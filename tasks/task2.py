@@ -25,7 +25,7 @@ from asymmetree.analysis import lrt_from_tree, bmg_from_tree
 from utils.bic_cherry import bic_cherry_expansion, restricted_bic_cherry_expansion
 from utils.graph_utils import bmg_from_network, clusters, same_phylogeny, wbmg_from_network
 from utils.lrt import is_least_resolved, lrt_by_contraction, lrt_from_bmg
-from utils.network_search import edit_search, reduce_to_tree
+from task_2_utils.network_search import edit_search, reduce_to_tree
 from utils.tree_utils import create_gene_tree_n_leaves
 
 
