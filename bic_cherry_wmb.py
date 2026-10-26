@@ -2,7 +2,6 @@ import networkx as nx
 from itertools import combinations, product
 import warnings
 
-
 def bic_cherry(bmg: nx.DiGraph):
     """Build the initial network: root R with one cherry p:u|v per connected pair."""
     # Copy all leaves with their colors into the new network
@@ -52,7 +51,9 @@ def bic_cherry(bmg: nx.DiGraph):
 
 
 def pair_key(a, b):
-    """Order two leaves by str, so the same pair always gives the same key/name."""
+    """
+    Order two leaves by str, so the same pair always gives the same key/name.
+    """
     return tuple(sorted([a, b], key=lambda item: str(item)))
 
 

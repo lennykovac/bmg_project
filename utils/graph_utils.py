@@ -1,6 +1,7 @@
 """
 Utilities for working nx.DiGraphs.
 
+Authors: Lenny Kovac, Leah Lederle, Arthur Araujo de Lacerda, Leo Grandke
 """
 
 import random

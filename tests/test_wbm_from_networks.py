@@ -15,7 +15,7 @@ def test_bic_cherry_for_wbm_generated_examples():
     Round-trip on random gene trees: tree -> WBMG -> network -> WBMG must match.
     """
     runs = 0
-    max_runs = 300
+    max_runs = 50 # this can be increased to 1000 or more, but the test will take a long time to run
     # (leaves, hybrids) -> number of mismatches
     mismatches = Counter()
 
